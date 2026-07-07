@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import { buildApp } from './src/server.js'
+import { buildApp } from './api/src/server.js'
 
 // ponytail: Fastify serverless adapter
 // Reuse app instance on warm start.

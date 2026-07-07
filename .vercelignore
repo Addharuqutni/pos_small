@@ -1,0 +1,5 @@
+api/src
+api/drizzle
+api/node_modules
+api/dist
+api/index.ts
