@@ -3,7 +3,7 @@ import { eq, desc, and, count } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/client.js'
 import { stockMovements, products } from '../db/schema.js'
-import { validate, validateIdParam } from '../lib/validation.js'
+import { validate } from '../lib/validation.js'
 import { paginationSchema, validateQuery } from '../lib/query-validation.js'
 import { requireAuth, requireRole } from '../lib/auth.js'
 import { logAudit } from '../lib/audit.js'
@@ -31,7 +31,7 @@ export async function stockRoutes(app: FastifyInstance) {
     if (productId) conditions.push(eq(stockMovements.productId, productId))
 
     const where = conditions.length > 0 ? and(...conditions) : undefined
-    const offset = (page - 1) * limit
+    const offset = (page! - 1) * limit!
 
     const [rows, totalRows] = await Promise.all([
       db
@@ -53,7 +53,7 @@ export async function stockRoutes(app: FastifyInstance) {
         .leftJoin(products, eq(stockMovements.productId, products.id))
         .where(where)
         .orderBy(desc(stockMovements.createdAt))
-        .limit(limit)
+        .limit(limit!)
         .offset(offset),
       db.select({ total: count() }).from(stockMovements).where(where),
     ])

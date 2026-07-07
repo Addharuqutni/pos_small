@@ -4,7 +4,6 @@ import { sql, and, gte, lte } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { sales, saleItems, products } from '../db/schema.js'
 import { requireAuth, requireRole } from '../lib/auth.js'
-import { BadRequest } from '../lib/errors.js'
 import { validateQuery } from '../lib/query-validation.js'
 
 const salesReportQuerySchema = z.object({

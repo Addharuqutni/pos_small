@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { eq, and, or, ilike, desc, sql, gte, lte, count, inArray } from 'drizzle-orm'
+import { eq, and, or, ilike, desc, gte, lte, count, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/client.js'
 import {
@@ -272,7 +272,7 @@ export async function saleRoutes(app: FastifyInstance) {
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined
-    const offset = (page - 1) * limit
+    const offset = (page! - 1) * limit!
 
     const [rows, totalRows] = await Promise.all([
       db
@@ -302,7 +302,7 @@ export async function saleRoutes(app: FastifyInstance) {
         .innerJoin(users, eq(sales.cashierId, users.id))
         .where(where)
         .orderBy(desc(sales.createdAt))
-        .limit(limit)
+        .limit(limit!)
         .offset(offset),
       db
         .select({ total: count() })

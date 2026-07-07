@@ -44,7 +44,7 @@ export async function productRoutes(app: FastifyInstance) {
 
     const conditions = []
     if (active !== undefined) {
-      conditions.push(eq(products.isActive, active))
+      conditions.push(eq(products.isActive, active!))
     }
     if (category) {
       conditions.push(eq(products.categoryId, category))
@@ -62,7 +62,7 @@ export async function productRoutes(app: FastifyInstance) {
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined
-    const offset = (page - 1) * limit
+    const offset = (page! - 1) * limit!
 
     const [rows, totalRows] = await Promise.all([
       db
@@ -90,7 +90,7 @@ export async function productRoutes(app: FastifyInstance) {
         .leftJoin(categories, eq(products.categoryId, categories.id))
         .where(where)
         .orderBy(products.name)
-        .limit(limit)
+        .limit(limit!)
         .offset(offset),
       db.select({ total: count() }).from(products).where(where),
     ])
