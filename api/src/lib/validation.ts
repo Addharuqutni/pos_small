@@ -16,5 +16,5 @@ export function validateIdParam(params: unknown, field = 'id'): string {
   if (!result.success) {
     throw new BadRequest(`${field} must be a valid UUID`)
   }
-  return result.data[field]
+  return result.data[field] as string
 }

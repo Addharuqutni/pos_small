@@ -22,7 +22,7 @@ export async function auditRoutes(app: FastifyInstance) {
   // GET /api/audit
   app.get('/', async (request) => {
     const { page, limit, entityType, entityId } = validateQuery(listQuerySchema, request.query)
-    const offset = (page - 1) * limit
+    const offset = (page! - 1) * limit!
 
     const conditions = []
     if (entityType) conditions.push(eq(auditLogs.entityType, entityType))
@@ -46,7 +46,7 @@ export async function auditRoutes(app: FastifyInstance) {
       .leftJoin(users, eq(auditLogs.actorUserId, users.id))
       .where(where)
       .orderBy(desc(auditLogs.createdAt))
-      .limit(limit)
+      .limit(limit!)
       .offset(offset)
 
     return { data: rows, page, limit }

@@ -186,13 +186,13 @@ export async function shiftRoutes(app: FastifyInstance) {
   // GET /api/shifts
   app.get('/', async (request) => {
     const { page, limit } = validateQuery(listQuerySchema, request.query)
-    const offset = (page - 1) * limit
+    const offset = (page! - 1) * limit!
 
     const rows = await db
       .select()
       .from(shifts)
       .orderBy(desc(shifts.openedAt))
-      .limit(limit)
+      .limit(limit!)
       .offset(offset)
 
     return rows
