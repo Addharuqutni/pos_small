@@ -44,7 +44,7 @@ export async function productRoutes(app: FastifyInstance) {
 
     const conditions = []
     if (active !== undefined) {
-      conditions.push(eq(products.isActive, active!))
+      conditions.push(eq(products.isActive, active as boolean))
     }
     if (category) {
       conditions.push(eq(products.categoryId, category))
