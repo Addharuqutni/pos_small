@@ -1,0 +1,36 @@
+{
+  "name": "pos-api",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "build": "tsc",
+    "start": "node --env-file=.env dist/server.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx --env-file=.env src/seed.ts",
+    "check": "tsc --noEmit",
+    "test": "tsx src/lib/sales-rules.self-check.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.0.0",
+    "@fastify/rate-limit": "^10.2.0",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.3.3",
+    "nanoid": "^5.1.5",
+    "pg": "^8.22.0",
+    "postgres": "^3.4.7",
+    "zod": "^3.25.36"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/node": "^22.15.0",
+    "drizzle-kit": "^0.31.8",
+    "tsx": "^4.22.4",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,20 @@
+const assert = require('node:assert/strict')
+const { readFileSync } = require('node:fs')
+const { join } = require('node:path')
+
+const source = readFileSync(join(__dirname, 'sales.ts'), 'utf8')
+
+assert(source.includes('or, ilike'), 'sales route must import or and ilike from drizzle-orm')
+assert(source.includes('escapeLikePattern'), 'sales route must import and use LIKE wildcard escaping')
+assert(source.includes('q: z.string().trim().optional()'), 'sales list query schema must accept trimmed q')
+assert(source.includes('const { page, limit, start, end, status, q } = validateQuery(listQuerySchema, request.query)'), 'sales list route must read q')
+assert(source.includes('const searchPattern = `%${escapeLikePattern(q)}%`'), 'sales search must escape wildcard characters')
+assert(source.includes('ilike(sales.invoiceNo, searchPattern)'), 'sales search must match invoice number with escaped pattern')
+assert(source.includes('ilike(users.name, searchPattern)'), 'sales search must match cashier name with escaped pattern')
+assert(!source.includes('ilike(sales.invoiceNo, `%${q}%`)'), 'sales search must not interpolate raw q for invoice')
+assert(!source.includes('ilike(users.name, `%${q}%`)'), 'sales search must not interpolate raw q for cashier')
+assert(source.includes('.innerJoin(users, eq(sales.cashierId, users.id))'), 'sales list queries must join users for cashier search')
+assert(source.includes('cashier: {'), 'sales list response must include cashier object')
+assert(!source.includes('const cashierIds = [...new Set(rows.map((row) => row.cashierId))]'), 'sales list must not use second cashier lookup after join')
+
+console.log('sales search escaping self-check passed')

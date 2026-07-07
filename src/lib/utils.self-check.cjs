@@ -1,0 +1,20 @@
+const assert = require('node:assert/strict')
+const { readFileSync } = require('node:fs')
+const { join } = require('node:path')
+
+const root = join(__dirname, '..')
+const utils = readFileSync(join(root, 'lib', 'utils.ts'), 'utf8')
+const reports = readFileSync(join(root, 'pages', 'dashboard', 'reports-page.tsx'), 'utf8')
+const dashboard = readFileSync(join(root, 'pages', 'dashboard', 'dashboard-home.tsx'), 'utf8')
+
+assert(utils.includes('export function localDateInputValue'), 'utils must export localDateInputValue')
+assert(utils.includes('export function localDayIso'), 'utils must export localDayIso')
+assert(!utils.includes('generateInvoicePreview'), 'unused generateInvoicePreview must be removed')
+assert(reports.includes("import { formatCurrency, formatDateOnly, localDateInputValue, localDayIso } from '@/lib/utils'"), 'reports page must import shared date helpers')
+assert(dashboard.includes("import { formatCurrency, formatDate, localDateInputValue, localDayIso } from '@/lib/utils'"), 'dashboard home must import shared date helpers')
+assert(!reports.includes('function localDateInputValue'), 'reports page must not duplicate localDateInputValue')
+assert(!reports.includes('function localDayIso'), 'reports page must not duplicate localDayIso')
+assert(!dashboard.includes('function localDateInputValue'), 'dashboard home must not duplicate localDateInputValue')
+assert(!dashboard.includes('function localDayIso'), 'dashboard home must not duplicate localDayIso')
+
+console.log('utils cleanup self-check passed')
