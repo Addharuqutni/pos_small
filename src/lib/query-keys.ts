@@ -6,7 +6,6 @@ export const queryKeys = {
   products: {
     all: ['products'] as const,
     list: (params?: Record<string, unknown>) => ['products', 'list', params] as const,
-    detail: (id: string) => ['products', id] as const,
   },
   categories: {
     all: ['categories'] as const,
@@ -18,9 +17,7 @@ export const queryKeys = {
     detail: (id: string) => ['sales', id] as const,
   },
   shifts: {
-    all: ['shifts'] as const,
     list: (params?: Record<string, unknown>) => ['shifts', 'list', params] as const,
-    detail: (id: string) => ['shifts', id] as const,
     active: ['shifts', 'active'] as const,
   },
   stock: {

@@ -14,4 +14,3 @@ const client = postgres(connectionString, {
   max: 5,
 })
 export const db = drizzle(client, { schema })
-export type Db = typeof db

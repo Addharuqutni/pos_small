@@ -67,24 +67,24 @@ npm run dev               # http://localhost:3000 (Vite)
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Vite dev server |
-| `npm run build` | `tsc -b` then `vite build` |
-| `npm run preview` | Preview production build |
-| `npm run check` | TypeScript build check (`tsc -b`) |
-| `npm test` | Run backend self-check (`api/` tests) |
+| `npm run dev` | Start the Vite dev server |
+| `npm run build` | Run the frontend TypeScript build check, then create a production Vite build |
+| `npm run preview` | Preview the production build |
+| `npm run check` | Frontend TypeScript build check (`tsc -b`) |
+| `npm test` | Run the backend sales-rules self-check through `api/` |
 
 ### `api/` (backend)
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | tsx watch with `.env` |
-| `npm run build` | `tsc` → `dist/` |
-| `npm run start` | Run built `dist/server.js` with `.env` |
+| `npm run dev` | Start the Fastify server with `tsx` watch mode and `.env` |
+| `npm run build` | Compile the backend to `dist/` |
+| `npm run start` | Run the compiled `dist/server.js` with `.env` |
 | `npm run db:generate` | Generate Drizzle migrations |
 | `npm run db:migrate` | Apply migrations |
-| `npm run db:seed` | Seed DB (owner + base data) |
-| `npm run check` | `tsc --noEmit` type check |
-| `npm test` | sales-rules self-check |
+| `npm run db:seed` | Seed the owner account and default settings row |
+| `npm run check` | Backend TypeScript check (`tsc --noEmit`) |
+| `npm test` | Run `src/lib/sales-rules.self-check.ts` (a standalone self-check, not a test runner) |
 
 ## Environment (`api/.env`)
 
@@ -93,22 +93,35 @@ See [`api/.env.example`](api/.env.example).
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string | `postgresql://postgres:password@localhost:54322/postgres` |
-| `SESSION_SECRET` | Yes (prod) | Cookie session secret, >=32 chars in production | random 32+ char string |
+| `SESSION_SECRET` | Yes (prod) | HMAC signing secret for the `sid` cookie; must be at least 32 characters in production | random 32+ character string |
 | `APP_URL` | Yes (prod) | Allowed CORS origin (frontend URL) | `http://localhost:3000` |
-| `NODE_ENV` | No | `development` / `production` | `development` |
+| `NODE_ENV` | No | `development` or `production` | `development` |
 | `OWNER_EMAIL` | Seed only | Initial owner account email | `owner@pos.local` |
 | `OWNER_PASSWORD` | Seed only | Initial owner password | `change-me` |
 | `OWNER_NAME` | Seed only | Initial owner display name | `Owner` |
-| `PORT` | No | Backend port (default 4000) | `4000` |
+| `PORT` | No | Backend port (defaults to `4000`) | `4000` |
 
 ## API
 
-All routes prefixed `/api`. Health: `GET /api/health` → `{ status: "ok" }`.
+All routes are prefixed with `/api`. Authentication is required unless noted. The health check is public: `GET /api/health` → `{ status: "ok" }`.
 
-Modules: `auth`, `categories`, `products`, `users`, `settings`, `shifts`, `sales`, `stock`, `reports`, `audit`.
+| Module | Endpoints | Access |
+|--------|-----------|--------|
+| Auth | `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | Login is public; logout and current-user lookup require authentication |
+| Categories | `GET /api/categories`, `POST /api/categories`, `PATCH /api/categories/:id` | Read: authenticated; write: owner/admin |
+| Products | `GET /api/products`, `GET /api/products/:id`, `POST /api/products`, `PATCH /api/products/:id` | Read: authenticated; write: owner/admin |
+| Users | `GET /api/users`, `POST /api/users`, `PATCH /api/users/:id`, `POST /api/users/:id/reset-password` | Authenticated; management actions are role-restricted |
+| Settings | `GET /api/settings`, `PATCH /api/settings` | Read: authenticated; write: owner/admin |
+| Shifts | `POST /api/shifts/open`, `GET /api/shifts/active`, `POST /api/shifts/close`, `GET /api/shifts`, `GET /api/shifts/report` | Shift operations: authenticated; report: owner/admin |
+| Sales | `POST /api/sales`, `GET /api/sales`, `GET /api/sales/:id`, `POST /api/sales/:id/void`, `POST /api/sales/:id/refund` | Sale operations: authenticated; void/refund: owner/admin |
+| Stock | `GET /api/stock/movements`, `POST /api/stock/adjust` | Read: authenticated; adjustment: owner/admin |
+| Reports | `GET /api/reports/sales`, `GET /api/reports/products`, `GET /api/reports/low-stock` | Authenticated; report access is role-restricted where applicable |
+| Audit | `GET /api/audit` | Owner/admin |
 
 ## Notes
 
-- Sessions via signed cookies (`@fastify/cookie`). Login rate-limited.
-- CORS restricted to `APP_URL`; no localhost fallback in production.
-- `SESSION_SECRET` < 32 chars and missing `APP_URL` throw on production boot.
+- The `sid` cookie contains a session identifier; sessions are persisted in the database and cached briefly in memory. `SESSION_SECRET` signs the cookie via `@fastify/cookie`.
+- The API enforces a global limit of 100 requests per minute. Login has a tighter in-memory limit of five attempts per minute per IP/email pair.
+- CORS is restricted to `APP_URL`; production does not fall back to localhost.
+- In production, startup fails when `SESSION_SECRET` is missing or shorter than 32 characters, or when `APP_URL` is missing.
+- When `VERCEL` is set, the standalone `app.listen` call is skipped so the app can be initialized by a serverless entrypoint. The repository currently documents that integration in `api/src/server.ts`; configure the platform entrypoint separately.
