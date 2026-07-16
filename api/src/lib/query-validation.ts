@@ -26,8 +26,6 @@ export const booleanParamSchema = z.object({
   active: booleanString.optional(),
 })
 
-export type PaginationParams = z.infer<typeof paginationSchema>
-
 /**
  * Validate a Fastify `request.query` object against a Zod schema.
  * Returns the parsed (and defaulted/transformed) value.
