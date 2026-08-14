@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { formatCurrency } from '@/lib/utils'
-import { Button, Input, Select, Modal, PageSpinner } from '@/components/ui'
+import { Button, Input, Select, Modal, PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Plus, Search, Edit2, Power, Wand2 } from 'lucide-react'
 import type { Product, Category, PaginatedResponse } from '@/types'
@@ -75,7 +75,7 @@ export function ProductsPage() {
   const [imageError, setImageError] = useState('')
   const debouncedSearch = useDebounce(search)
 
-  const { data: products, isLoading } = useQuery({
+  const { data: products, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.products.list({ search: debouncedSearch, category: filterCategory }),
     queryFn: () => {
       const params = new URLSearchParams()
@@ -220,20 +220,16 @@ export function ProductsPage() {
     ?.filter((c) => c.isActive || c.id === editing?.categoryId)
     .map((c) => ({ value: c.id, label: c.name })) ?? []
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <TableSkeleton rows={8} />
+  if (isError) return <ErrorState message="Gagal memuat produk." onRetry={() => refetch()} />
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Produk</h1>
-          <p className="text-sm text-slate-500">Kelola produk toko</p>
-        </div>
+      <PageHeader title="Produk" subtitle="Kelola produk toko">
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" /> Tambah Produk
         </Button>
-      </div>
+      </PageHeader>
 
       {toggleMutation.isError && (
         <p className="mb-4 text-sm text-red-600" role="alert">
@@ -246,19 +242,24 @@ export function ProductsPage() {
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
-            type="text"
+            id="product-search"
+            type="search"
+            name="product-search"
             placeholder="Cari nama, SKU, barcode..."
             className="input pl-10"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Cari nama, SKU, barcode"
+            autoComplete="off"
           />
         </div>
         <div className="w-48">
           <Select
+            name="product-category-filter"
             options={[{ value: '', label: 'Semua Kategori' }, ...categoryOptions]}
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
+            aria-label="Filter kategori"
           />
         </div>
       </div>
@@ -300,32 +301,26 @@ export function ProductsPage() {
                       {product.stock}
                     </span>
                   ) : (
-                    <span className="text-slate-400">∞</span>
+                    <span className="text-slate-500">∞</span>
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                      product.isActive
-                        ? 'bg-green-50 text-green-700'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
+                  <StatusBadge tone={product.isActive ? 'green' : 'slate'}>
                     {product.isActive ? 'Aktif' : 'Nonaktif'}
-                  </span>
+                  </StatusBadge>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1">
                     <button
                       onClick={() => openEdit(product)}
-                      className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      className="icon-button"
                       aria-label={`Edit ${product.name}`}
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => toggleMutation.mutate(product)}
-                      className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      className="icon-button"
                       aria-label={`${product.isActive ? 'Nonaktifkan' : 'Aktifkan'} ${product.name}`}
                     >
                       <Power className="h-4 w-4" />
@@ -336,7 +331,7 @@ export function ProductsPage() {
             ))}
             {(!products?.data || products.data.length === 0) && (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
                   {search ? 'Produk tidak ditemukan' : 'Belum ada produk'}
                 </td>
               </tr>
@@ -384,6 +379,7 @@ export function ProductsPage() {
                 <div className="flex-1">
                   <input
                     id="product-image"
+                    name="product-image"
                     type="file"
                     accept="image/*"
                     className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"

@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { useAuth } from '@/contexts/auth-context'
-import { Button, Input, PageSpinner } from '@/components/ui'
+import { Button, Input, PageHeader, PageSpinner } from '@/components/ui'
 import type { StoreSettings } from '@/types'
 
 const settingsSchema = z.object({
@@ -49,10 +49,7 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-2xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Pengaturan Toko</h1>
-        <p className="text-sm text-slate-500">Konfigurasi informasi toko</p>
-      </div>
+      <PageHeader title="Pengaturan Toko" subtitle="Konfigurasi informasi toko" />
 
       <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="card space-y-4">
         <Input label="Nama Toko" error={errors.storeName?.message} {...register('storeName')} />

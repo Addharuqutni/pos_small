@@ -2,13 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { PageSpinner } from '@/components/ui'
+import { PageHeader, StatusBadge, TableSkeleton, ErrorState } from '@/components/ui'
 import type { Shift } from '@/types'
 
 type ShiftReport = Shift & { cashierName: string }
 
 export function ShiftReportPage() {
-  const { data: shifts, isLoading } = useQuery({
+  const { data: shifts, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.reports.shifts(),
     queryFn: () => api.get<ShiftReport[]>('/shifts/report'),
     staleTime: 0,
@@ -16,7 +16,8 @@ export function ShiftReportPage() {
     refetchOnWindowFocus: true,
   })
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <TableSkeleton rows={7} />
+  if (isError) return <ErrorState message="Gagal memuat laporan shift." onRetry={() => refetch()} />
 
   const visibleShifts = shifts?.filter((s) => {
     if (s.status !== 'open') return true
@@ -28,13 +29,13 @@ export function ShiftReportPage() {
   })
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">Laporan Shift</h1>
+    <div>
+      <PageHeader title="Laporan Shift" subtitle="Rekonsiliasi kas per shift" />
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50">
-            <tr>
+      <div className="card overflow-x-auto p-0">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
               <th className="px-4 py-3 text-left font-medium text-slate-600">Kasir</th>
               <th className="px-4 py-3 text-left font-medium text-slate-600">Dibuka</th>
               <th className="px-4 py-3 text-left font-medium text-slate-600">Ditutup</th>
@@ -45,16 +46,16 @@ export function ShiftReportPage() {
               <th className="px-4 py-3 text-center font-medium text-slate-600">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody>
             {visibleShifts?.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
                   Belum ada data shift.
                 </td>
               </tr>
             )}
             {visibleShifts?.map((s) => (
-              <tr key={s.id} className="hover:bg-slate-50">
+              <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-3 text-slate-900">{s.cashierName}</td>
                 <td className="px-4 py-3 text-slate-600">{formatDate(s.openedAt)}</td>
                 <td className="px-4 py-3 text-slate-600">{s.closedAt ? formatDate(s.closedAt) : '-'}</td>
@@ -63,15 +64,9 @@ export function ShiftReportPage() {
                 <td className="px-4 py-3 text-right text-slate-900">{s.expectedCash != null ? formatCurrency(s.expectedCash) : '-'}</td>
                 <td className="px-4 py-3 text-right text-slate-900">{s.difference != null ? formatCurrency(s.difference) : '-'}</td>
                 <td className="px-4 py-3 text-center">
-                  <span
-                    className={
-                      s.status === 'open'
-                        ? 'inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700'
-                        : 'inline-block rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700'
-                    }
-                  >
+                  <StatusBadge tone={s.status === 'open' ? 'green' : 'slate'}>
                     {s.status === 'open' ? 'Buka' : 'Tutup'}
-                  </span>
+                  </StatusBadge>
                 </td>
               </tr>
             ))}

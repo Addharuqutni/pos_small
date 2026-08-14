@@ -158,30 +158,11 @@ export interface RefundItem {
   amount: number
 }
 
-// PRD §15 — Audit log
-export interface AuditLog {
-  id: string
-  actorUserId: string
-  action: string
-  entityType: string
-  entityId: string
-  beforeJson: unknown
-  afterJson: unknown
-  ipAddress: string
-  createdAt: string
-}
-
 // Cart (frontend-only)
 export interface CartItem {
   product: Product
   qty: number
   discount: number // per-item discount, integer minor unit
-}
-
-// API response wrapper
-export interface ApiResponse<T> {
-  data: T
-  message?: string
 }
 
 export interface PaginatedResponse<T> {
@@ -241,22 +222,8 @@ export const saleStatusLabels: Record<SaleStatus, string> = {
   partial_refunded: 'Refund Sebagian',
 }
 
-export const saleStatusBadgeClass: Record<SaleStatus, string> = {
-  paid: 'bg-green-100 text-green-700',
-  void: 'bg-slate-100 text-slate-600',
-  refunded: 'bg-red-100 text-red-700',
-  partial_refunded: 'bg-amber-100 text-amber-700',
-}
-
 export const paymentMethodLabels: Record<PaymentMethod, string> = {
   cash: 'Tunai',
   qris: 'QRIS',
   transfer: 'Transfer',
 }
-
-export const roleLabels: Record<Role, string> = {
-  owner: 'Owner',
-  admin: 'Admin',
-  cashier: 'Kasir',
-}
-

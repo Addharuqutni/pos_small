@@ -7,9 +7,10 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, id, ...props }, ref) => {
+  ({ className, label, error, id, name, ...props }, ref) => {
     const generatedId = useId()
     const inputId = id ?? generatedId
+    const inputName = name ?? (id ? id : undefined)
 
     return (
       <div className="w-full">
@@ -21,6 +22,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           id={inputId}
+          name={inputName}
           className={cn(
             'input',
             error && 'border-red-500 focus:border-red-500 focus:ring-red-500/20',

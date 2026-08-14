@@ -9,9 +9,10 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, error, options, placeholder, id, ...props }, ref) => {
+  ({ className, label, error, options, placeholder, id, name, ...props }, ref) => {
     const generatedId = useId()
     const selectId = id ?? generatedId
+    const selectName = name ?? (id ? id : undefined)
     const errorId = error ? `${selectId}-error` : undefined
 
     return (
@@ -24,6 +25,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           id={selectId}
+          name={selectName}
           className={cn(
             'input',
             error && 'border-red-500 focus:border-red-500 focus:ring-red-500/20',

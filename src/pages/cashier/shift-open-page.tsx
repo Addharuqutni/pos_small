@@ -36,6 +36,7 @@ export function ShiftOpenPage() {
         </div>
 
         <Input
+          name="opening-cash"
           label="Modal Awal"
           type="number"
           min={0}

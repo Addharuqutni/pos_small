@@ -5,9 +5,9 @@ import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { AlertTriangle, BarChart3, ShoppingCart, TrendingUp } from 'lucide-react'
 import { formatCurrency, formatDate, localDateInputValue, localDayIso } from '@/lib/utils'
-import { PageSpinner } from '@/components/ui'
+import { PageHeader, PageSpinner, StatusBadge, ErrorState } from '@/components/ui'
 import type { PaginatedResponse, Sale, SalesReportResponse, ProductReportRow } from '@/types'
-import { saleStatusLabels, saleStatusBadgeClass } from '@/types'
+import { saleStatusLabels } from '@/types'
 
 interface LowStockProduct {
   id: string
@@ -25,9 +25,116 @@ function lastSevenDays(today = new Date()) {
   })
 }
 
-function barHeight(value: number, max: number) {
-  if (value <= 0 || max <= 0) return 8
-  return Math.max(8, Math.round((value / max) * 100))
+function niceChartMax(value: number) {
+  if (value <= 0) return 1
+  const magnitude = 10 ** Math.floor(Math.log10(value))
+  const normalized = value / magnitude
+  const ceiling = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10
+  return ceiling * magnitude
+}
+
+const compactCurrency = new Intl.NumberFormat('id-ID', {
+  style: 'currency',
+  currency: 'IDR',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+})
+
+interface RevenueChartRow {
+  date: string
+  totalSales: number
+  totalRevenue: number
+}
+
+function RevenueChart({ rows, startDate, endDate }: { rows: RevenueChartRow[]; startDate: string; endDate: string }) {
+  const width = 700
+  const height = 260
+  const margin = { top: 16, right: 16, bottom: 42, left: 64 }
+  const plotWidth = width - margin.left - margin.right
+  const plotHeight = height - margin.top - margin.bottom
+  const max = niceChartMax(Math.max(...rows.map((row) => row.totalRevenue), 0))
+  const points = rows.map((row, index) => ({
+    ...row,
+    x: margin.left + (index / Math.max(1, rows.length - 1)) * plotWidth,
+    y: margin.top + plotHeight - (row.totalRevenue / max) * plotHeight,
+  }))
+  const linePoints = points.map(({ x, y }) => `${x},${y}`).join(' ')
+  const areaPoints = `${margin.left},${margin.top + plotHeight} ${linePoints} ${margin.left + plotWidth},${margin.top + plotHeight}`
+  const ticks = [0, 0.25, 0.5, 0.75, 1]
+
+  return (
+    <figure aria-labelledby="revenue-chart-title revenue-chart-description">
+      <figcaption className="sr-only">
+        <span id="revenue-chart-title">Grafik garis omzet harian</span>
+        <span id="revenue-chart-description"> Periode {startDate} sampai {endDate}.</span>
+      </figcaption>
+      <div className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50/70 p-2 sm:p-3">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img" aria-hidden="true">
+          <defs>
+            <linearGradient id="revenue-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {ticks.map((tick) => {
+            const y = margin.top + plotHeight - tick * plotHeight
+            return (
+              <g key={tick}>
+                <line x1={margin.left} x2={margin.left + plotWidth} y1={y} y2={y} stroke="#e2e8f0" strokeDasharray="4 6" />
+                <text x={margin.left - 10} y={y + 4} textAnchor="end" className="fill-slate-400 text-[11px]">
+                  {compactCurrency.format(max * tick)}
+                </text>
+              </g>
+            )
+          })}
+
+          <polygon points={areaPoints} fill="url(#revenue-area)" />
+          <polyline
+            points={linePoints}
+            fill="none"
+            stroke="#2563eb"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {points.map((point) => (
+            <g key={point.date}>
+              <circle cx={point.x} cy={point.y} r="5" fill="white" stroke="#2563eb" strokeWidth="3">
+                <title>{point.date}: {formatCurrency(point.totalRevenue)} dari {point.totalSales} transaksi</title>
+              </circle>
+              <text x={point.x} y={height - 14} textAnchor="middle" className="fill-slate-500 text-[11px] font-medium">
+                {point.date.slice(5)}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+
+      <details className="mt-3 text-sm">
+        <summary className="cursor-pointer font-medium text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
+          Lihat data grafik
+        </summary>
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="text-left text-slate-500">
+              <tr><th className="py-2">Tanggal</th><th className="py-2 text-right">Transaksi</th><th className="py-2 text-right">Omzet</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.date} className="border-t border-slate-100">
+                  <td className="py-2">{row.date}</td>
+                  <td className="py-2 text-right">{row.totalSales}</td>
+                  <td className="py-2 text-right font-mono">{formatCurrency(row.totalRevenue)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </figure>
+  )
 }
 
 function ErrorNote({ children }: { children: string }) {
@@ -100,6 +207,14 @@ export function DashboardHomePage() {
   })
 
   if (salesQuery.isLoading) return <PageSpinner />
+  if (salesQuery.isError) {
+    return (
+      <ErrorState
+        message="Gagal memuat ringkasan penjualan."
+        onRetry={() => salesQuery.refetch()}
+      />
+    )
+  }
 
   const dailyByDate = new Map((salesQuery.data?.daily ?? []).map((row) => [row.date, row]))
   const dailyRows = days.map((date) => {
@@ -110,7 +225,6 @@ export function DashboardHomePage() {
       totalRevenue: row?.totalRevenue ?? 0,
     }
   })
-  const maxRevenue = Math.max(...dailyRows.map((row) => row.totalRevenue), 0)
   const totalSales = salesQuery.data?.summary?.totalSales ?? 0
   const totalRevenue = salesQuery.data?.summary?.totalRevenue ?? 0
   const averageSale = totalSales > 0 ? Math.round(totalRevenue / totalSales) : 0
@@ -127,19 +241,14 @@ export function DashboardHomePage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Selamat datang, {user?.name}
-          </h1>
-          <p className="text-sm text-slate-500">
-            Ringkasan {startDate.slice(5)} sampai {endDate.slice(5)}
-          </p>
-        </div>
+      <PageHeader
+        title={`Selamat datang, ${user?.name ?? ''}`}
+        subtitle={`Ringkasan ${startDate.slice(5)} sampai ${endDate.slice(5)}`}
+      >
         <Link to="/dashboard/reports" className="btn-secondary w-full sm:w-auto">
           Buka laporan
         </Link>
-      </div>
+      </PageHeader>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
@@ -168,23 +277,7 @@ export function DashboardHomePage() {
           {totalSales === 0 ? (
             <p className="py-12 text-center text-sm text-slate-400">Belum ada transaksi 7 hari terakhir</p>
           ) : (
-            <div className="flex h-64 items-end gap-2 sm:gap-3" aria-label={`Grafik omzet harian dari ${startDate} sampai ${endDate}`}>
-              {dailyRows.map((row) => (
-                <div key={row.date} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-                  <div className="flex h-36 w-full items-end rounded-xl bg-slate-50 px-1.5 py-1 ring-1 ring-slate-100 sm:px-2">
-                    <div
-                      className="w-full rounded-t-md bg-primary-500 transition-all"
-                      style={{ height: `${barHeight(row.totalRevenue, maxRevenue)}%` }}
-                      title={`${row.date}: ${formatCurrency(row.totalRevenue)}`}
-                    />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs font-medium text-slate-700">{row.date.slice(5)}</p>
-                    <p className="hidden text-[11px] text-slate-500 sm:block">{formatCurrency(row.totalRevenue)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <RevenueChart rows={dailyRows} startDate={startDate} endDate={endDate} />
           )}
         </section>
 
@@ -240,10 +333,11 @@ export function DashboardHomePage() {
                 </thead>
                 <tbody>
                   {recentSales.map((sale) => {
-                    const status = {
-                      label: saleStatusLabels[sale.status] ?? sale.status,
-                      className: saleStatusBadgeClass[sale.status] ?? 'bg-slate-100 text-slate-600',
-                    }
+                    const tone = sale.status === 'paid'
+                      ? 'green'
+                      : sale.status === 'void' || sale.status === 'refunded'
+                        ? 'red'
+                        : 'amber'
                     return (
                       <tr key={sale.id} className="border-b border-slate-100 last:border-0">
                         <td className="px-4 py-3">
@@ -255,9 +349,7 @@ export function DashboardHomePage() {
                         <td className="px-4 py-3 text-slate-700">{sale.cashier?.name ?? '-'}</td>
                         <td className="px-4 py-3 text-right font-mono font-medium">{formatCurrency(sale.grandTotal)}</td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>
-                            {status.label}
-                          </span>
+                          <StatusBadge tone={tone}>{saleStatusLabels[sale.status]}</StatusBadge>
                         </td>
                       </tr>
                     )

@@ -43,7 +43,8 @@ export async function buildApp(): Promise<FastifyInstance> {
     timeWindow: '1 minute',
   })
 
-  await app.register(errorHandler)
+  // Root-scoped: do not register as a child plugin or encapsulation hides it from routes.
+  errorHandler(app)
 
   // Routes — all prefixed /api
   await app.register(authRoutes, { prefix: '/api/auth' })

@@ -1,5 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/auth-context'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -33,6 +36,14 @@ export function DashboardLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Store name from settings — fallback to generic brand while loading
+  const { data: settings } = useQuery({
+    queryKey: queryKeys.settings.all,
+    queryFn: () => api.get<{ storeName: string }>('/settings'),
+    staleTime: 10 * 60 * 1000,
+  })
+  const storeName = settings?.storeName || 'POS App'
 
   const handleLogout = async () => {
     await logout()
@@ -70,9 +81,9 @@ export function DashboardLayout() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-sm font-bold text-white">
             P
           </div>
-          <span className="text-lg font-semibold text-white">POS App</span>
+          <span className="truncate text-lg font-semibold text-white">{storeName}</span>
           <button
-            className="ml-auto text-slate-400 hover:text-white lg:hidden"
+            className="ml-auto inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 lg:hidden"
             onClick={() => setSidebarOpen(false)}
             aria-label="Tutup menu"
           >
@@ -129,7 +140,7 @@ export function DashboardLayout() {
         {/* Top bar */}
         <header className="flex h-16 items-center gap-4 border-b border-slate-200 bg-white px-6">
           <button
-            className="text-slate-600 hover:text-slate-900 lg:hidden"
+            className="icon-button lg:hidden"
             onClick={() => setSidebarOpen(true)}
             aria-label="Buka menu"
           >
@@ -142,7 +153,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <Outlet />
         </main>
       </div>

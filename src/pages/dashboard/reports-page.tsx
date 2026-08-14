@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { formatCurrency, formatDateOnly, localDateInputValue, localDayIso } from '@/lib/utils'
-import { Button, Input, PageSpinner } from '@/components/ui'
+import { Button, Input, PageHeader, TableSkeleton, ErrorState } from '@/components/ui'
 import { Download } from 'lucide-react'
 
 interface SalesReportRow {
@@ -33,7 +33,7 @@ export function ReportsPage() {
   const startQuery = localDayIso(startDate)
   const endQuery = localDayIso(endDate, true)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.reports.sales({ startDate, endDate }),
     queryFn: () =>
       api.get<SalesReportResponse>(`/reports/sales?start=${startQuery}&end=${endQuery}`),
@@ -49,18 +49,14 @@ export function ReportsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Laporan Penjualan</h1>
-          <p className="text-sm text-slate-500">Rangkuman penjualan per periode</p>
-        </div>
+      <PageHeader title="Laporan Penjualan" subtitle="Rangkuman penjualan per periode">
         <Button variant="secondary" onClick={handleExport}>
           <Download className="h-4 w-4" /> Export CSV
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Filters */}
-      <div className="mb-4 flex gap-4">
+      <div className="mb-4 flex flex-wrap gap-4">
         <Input
           label="Dari"
           type="date"
@@ -78,7 +74,9 @@ export function ReportsPage() {
       </div>
 
       {isLoading ? (
-        <PageSpinner />
+        <TableSkeleton rows={7} />
+      ) : isError ? (
+        <ErrorState message="Gagal memuat laporan." onRetry={() => refetch()} />
       ) : (
         <>
           {data?.summary && (
@@ -125,7 +123,7 @@ export function ReportsPage() {
                 ))}
                 {(!data?.daily || data.daily.length === 0) && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-slate-400">
+                    <td colSpan={5} className="px-4 py-12 text-center text-slate-500">
                       Tidak ada data untuk periode ini
                     </td>
                   </tr>

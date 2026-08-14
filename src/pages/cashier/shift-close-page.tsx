@@ -45,12 +45,12 @@ export function ShiftClosePage() {
   if (closedShift) {
     return (
       <div className="flex h-full items-center justify-center overflow-y-auto bg-slate-100 px-4 py-8">
-        <div className="w-full max-w-lg rounded-3xl border border-green-200 bg-white p-6 text-center shadow-xl shadow-slate-200/70 sm:p-8">
+        <div className="card w-full max-w-lg text-center">
           <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
             Transaksi shift selesai
           </span>
-          <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-950">Shift Ditutup</h1>
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+          <h1 className="mt-4 text-xl font-bold text-slate-900">Shift Ditutup</h1>
+          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
             <div className="flex items-center justify-between gap-4">
               <span className="text-slate-500">Kas Sistem</span>
               <span className="font-mono font-bold text-slate-900">{formatCurrency(closedShift.expectedCash ?? 0)}</span>
@@ -64,7 +64,7 @@ export function ShiftClosePage() {
               <span className="font-mono font-bold text-primary-700">{formatCurrency(closedShift.difference ?? 0)}</span>
             </div>
           </div>
-          <Button type="button" className="mt-6 w-full rounded-2xl" onClick={() => navigate('/cashier')}>
+          <Button type="button" className="mt-6 w-full rounded-xl" onClick={() => navigate('/cashier')}>
             Kembali ke Kasir
           </Button>
         </div>
@@ -75,13 +75,13 @@ export function ShiftClosePage() {
   if (!activeShift) {
     return (
       <div className="flex h-full items-center justify-center overflow-y-auto bg-slate-100 px-4 py-8">
-        <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-xl shadow-slate-200/70 sm:p-8">
+        <div className="card w-full max-w-lg text-center">
           <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
             Shift belum aktif
           </span>
-          <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-950">Tidak Ada Shift Aktif</h1>
+          <h1 className="mt-4 text-xl font-bold text-slate-900">Tidak Ada Shift Aktif</h1>
           <p className="mt-2 text-sm text-slate-500">Buka shift dulu sebelum menutup shift.</p>
-          <Button type="button" className="mt-6 w-full rounded-2xl" onClick={() => navigate('/cashier')}>
+          <Button type="button" className="mt-6 w-full rounded-xl" onClick={() => navigate('/cashier')}>
             Kembali ke Kasir
           </Button>
         </div>
@@ -91,17 +91,17 @@ export function ShiftClosePage() {
 
   return (
     <div className="flex h-full items-center justify-center overflow-y-auto bg-slate-100 px-4 py-8">
-      <form onSubmit={handleSubmit} className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 sm:p-8">
+      <form onSubmit={handleSubmit} className="card w-full max-w-lg">
         <div className="text-center">
           <span className="inline-flex rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
             Akhiri shift aktif
           </span>
-          <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-950">Tutup Shift</h1>
+          <h1 className="mt-4 text-xl font-bold text-slate-900">Tutup Shift</h1>
           <p className="mt-2 text-sm text-slate-500">Masukkan kas akhir hasil hitung manual.</p>
         </div>
 
         {activeShift && (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
             <div className="flex items-center justify-between gap-4">
               <span className="text-slate-500">Modal Awal</span>
               <span className="font-mono font-bold text-slate-900">{formatCurrency(activeShift.openingCash)}</span>
@@ -115,15 +115,16 @@ export function ShiftClosePage() {
           </div>
         )}
 
-        <div className="mt-6 rounded-2xl border border-primary-100 bg-primary-50/50 p-4">
+        <div className="mt-6 rounded-xl border border-primary-100 bg-primary-50/50 p-4">
           <Input
+            name="closing-cash"
             label="Kas Akhir"
             type="number"
             min={0}
             value={closingCash}
             onChange={(e) => setClosingCash(e.target.value)}
             placeholder="0"
-            className="h-14 rounded-2xl border-primary-200 bg-white text-lg font-bold shadow-inner focus:border-primary-500"
+            className="h-14 rounded-xl border-primary-200 bg-white text-lg font-bold focus:border-primary-500"
             autoFocus
           />
           <p className="mt-2 text-xs text-slate-500">Isi nominal tunai yang ada di laci kas.</p>
@@ -136,10 +137,10 @@ export function ShiftClosePage() {
         )}
 
         <div className="mt-6 space-y-3">
-          <Button type="submit" className="h-[52px] w-full rounded-2xl text-base font-bold" variant="danger" loading={mutation.isPending}>
+          <Button type="submit" className="h-[52px] w-full rounded-xl text-base font-bold" variant="danger" loading={mutation.isPending}>
             Tutup Shift
           </Button>
-          <Button type="button" className="w-full rounded-2xl" variant="secondary" onClick={() => navigate('/cashier')}>
+          <Button type="button" className="w-full rounded-xl" variant="secondary" onClick={() => navigate('/cashier')}>
             Kembali ke Kasir
           </Button>
         </div>
