@@ -165,7 +165,7 @@ export function CashierPosPage() {
                     </span>
                   </div>
                 </div>
-                <button onClick={handleLogout} className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 xl:hidden" aria-label="Keluar">
+                <button onClick={handleLogout} className="icon-button xl:hidden" aria-label="Keluar">
                   <LogOut className="h-5 w-5" />
                 </button>
               </div>
@@ -174,13 +174,16 @@ export function CashierPosPage() {
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-primary-500" />
                 <input
                   ref={searchRef}
-                  type="text"
+                  id="cashier-product-search"
+                  name="cashier-product-search"
+                  type="search"
                   placeholder="Cari produk atau scan barcode..."
-                  className="input h-14 rounded-2xl border-slate-200 bg-slate-50 pl-12 text-base shadow-inner focus:bg-white"
+                  className="input h-14 rounded-xl pl-12 text-base"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
                   aria-label="Cari produk atau scan barcode"
+                  autoComplete="off"
                 />
               </div>
 
@@ -195,7 +198,7 @@ export function CashierPosPage() {
                     Tutup shift
                   </Button>
                 )}
-                <button onClick={handleLogout} className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500" aria-label="Keluar">
+                <button onClick={handleLogout} className="icon-button" aria-label="Keluar">
                   <LogOut className="h-5 w-5" />
                 </button>
               </div>
@@ -224,18 +227,18 @@ export function CashierPosPage() {
                   <button
                     key={p.id}
                     onClick={() => { addSafeItem(p); setSearch('') }}
-                    className="group flex min-h-44 flex-col items-start rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:border-slate-200 disabled:hover:shadow-sm"
+                    className="flex min-h-44 flex-col items-start rounded-xl border border-slate-200 bg-white p-3 text-left transition-colors hover:border-primary-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
                     disabled={!canSell(p)}
                   >
                     {p.imageData ? (
                       <img src={p.imageData} alt={p.name} className="mb-3 h-24 w-full rounded-xl object-cover" loading="lazy" />
                     ) : (
-                      <div className="mb-3 flex h-24 w-full items-center justify-center rounded-xl bg-gradient-to-br from-primary-50 to-slate-100 text-2xl font-bold text-primary-300 group-hover:text-primary-500">
+                      <div className="mb-3 flex h-24 w-full items-center justify-center rounded-xl bg-slate-50 text-2xl font-bold text-slate-400">
                         {p.name.charAt(0).toUpperCase()}
                       </div>
                     )}
                     <span className="line-clamp-2 text-sm font-semibold leading-snug text-slate-950">{p.name}</span>
-                    <span className="mt-1 min-h-4 text-xs text-slate-400">{p.barcode || p.sku || ''}</span>
+                    <span className="mt-1 min-h-4 text-xs text-slate-500">{p.barcode || p.sku || ''}</span>
                     <span className="mt-auto pt-3 text-base font-extrabold text-primary-700">
                       {formatCurrency(p.price)}
                     </span>
@@ -253,7 +256,7 @@ export function CashierPosPage() {
                 )}
               </div>
             ) : (
-              <div className="flex h-full min-h-80 items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white text-slate-300">
+              <div className="flex h-full min-h-80 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white text-slate-500">
                 <div className="text-center">
                   <Search className="mx-auto mb-3 h-12 w-12" />
                   <p className="font-medium">Ketik nama produk atau scan barcode</p>
@@ -264,13 +267,13 @@ export function CashierPosPage() {
         </div>
 
         {/* Right — Cart */}
-        <div className="flex w-full flex-col border-t border-slate-200 bg-white shadow-2xl lg:w-[28rem] lg:border-l lg:border-t-0 xl:w-[30rem]">
+        <div className="flex w-full flex-col border-t border-slate-200 bg-white lg:w-[28rem] lg:border-l lg:border-t-0 xl:w-[30rem]">
           {/* Cart header */}
           <div className="border-b border-slate-200 bg-white px-4 py-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-950">Keranjang</h2>
-                <p className="text-sm text-slate-400">{itemCount} item dipilih</p>
+                <p className="text-sm text-slate-500">{itemCount} item dipilih</p>
               </div>
               {itemCount > 0 && (
                 <span className="rounded-full bg-primary-50 px-3 py-1 text-sm font-bold text-primary-700">
@@ -295,9 +298,9 @@ export function CashierPosPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-950">{item.product.name}</p>
-                        <p className="mt-0.5 text-xs text-slate-400">{formatCurrency(item.product.price)} / pcs</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{formatCurrency(item.product.price)} / pcs</p>
                       </div>
-                      <button onClick={() => removeItem(item.product.id)} className="rounded-lg p-2 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500" aria-label="Hapus item">
+                      <button onClick={() => removeItem(item.product.id)} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500" aria-label="Hapus item">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -305,13 +308,15 @@ export function CashierPosPage() {
                       <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
                         <button
                           onClick={() => setSafeQty(item.product, item.qty - 1)}
-                          className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-white disabled:text-slate-300"
+                          className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-white disabled:text-slate-400"
                           disabled={item.qty <= 1}
                           aria-label="Kurangi qty"
                         >
                           <Minus className="h-4 w-4" />
                         </button>
                         <input
+                          id={`cart-qty-${item.product.id}`}
+                          name={`cart-qty-${item.product.id}`}
                           type="number"
                           min={1}
                           value={item.qty}
@@ -321,7 +326,7 @@ export function CashierPosPage() {
                         />
                         <button
                           onClick={() => setSafeQty(item.product, item.qty + 1)}
-                          className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-white disabled:text-slate-300"
+                          className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-white disabled:text-slate-400"
                           disabled={item.qty >= maxSellableQty(item.product)}
                           aria-label="Tambah qty"
                         >
@@ -339,8 +344,8 @@ export function CashierPosPage() {
           </div>
 
           {/* Cart footer — totals + pay button */}
-          <div className="space-y-3 border-t border-slate-200 bg-gradient-to-b from-slate-50 to-white p-4">
-            <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="space-y-3 border-t border-slate-200 bg-slate-50 p-4">
+            <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Subtotal</span>
                 <span className="font-mono font-medium">{formatCurrency(subtotal)}</span>
@@ -383,7 +388,7 @@ export function CashierPosPage() {
             )}
 
             <Button
-              className="h-14 w-full rounded-2xl text-lg font-bold shadow-lg shadow-primary-600/20"
+              className="h-14 w-full rounded-xl text-lg font-bold"
               size="lg"
               disabled={!canCheckout}
               onClick={() => setShowPayment(true)}
@@ -395,9 +400,9 @@ export function CashierPosPage() {
       </div>
 
       {/* Payment modal */}
-      <Modal open={showPayment} onClose={() => setShowPayment(false)} title="Pembayaran" className="max-w-md rounded-2xl">
+      <Modal open={showPayment} onClose={() => setShowPayment(false)} title="Pembayaran" className="max-w-md">
         <div className="space-y-5">
-          <div className="rounded-2xl bg-primary-50 p-5 text-center">
+          <div className="rounded-xl bg-primary-50 p-5 text-center">
             <p className="text-sm font-medium text-primary-600">Total Bayar</p>
             <p className="mt-1 text-3xl font-black text-primary-900">{formatCurrency(grandTotal)}</p>
           </div>
@@ -414,7 +419,7 @@ export function CashierPosPage() {
                 <button
                   key={method}
                   onClick={() => setPaymentMethod(method)}
-                  className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl border-2 p-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
+                  className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border-2 p-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
                     paymentMethod === method
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
                       : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
@@ -431,6 +436,7 @@ export function CashierPosPage() {
           {paymentMethod === 'cash' && (
             <div>
               <Input
+                name="cash-received"
                 label="Uang Diterima"
                 type="number"
                 min={grandTotal}
@@ -447,7 +453,7 @@ export function CashierPosPage() {
           )}
 
           <Button
-            className="h-12 w-full rounded-2xl font-bold"
+            className="h-12 w-full rounded-xl font-bold"
             size="lg"
             variant="success"
             loading={checkoutMutation.isPending}
@@ -466,7 +472,7 @@ export function CashierPosPage() {
       </Modal>
 
       {/* Completed sale — receipt */}
-      <Modal open={!!completedSale} onClose={() => setCompletedSale(null)} title="Transaksi Berhasil" className="max-w-md rounded-2xl">
+      <Modal open={!!completedSale} onClose={() => setCompletedSale(null)} title="Transaksi Berhasil" className="max-w-md">
         {completedSale && (
           <div>
             <div className="mb-4 rounded-2xl bg-green-50 p-4 text-center text-green-700">

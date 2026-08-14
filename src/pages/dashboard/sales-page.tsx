@@ -3,15 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { PageSpinner } from '@/components/ui'
+import { PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { Link } from 'react-router-dom'
 import type { Sale, PaginatedResponse } from '@/types'
 
-const statusLabels: Record<string, { label: string; class: string }> = {
-  paid: { label: 'Lunas', class: 'bg-green-50 text-green-700' },
-  void: { label: 'Void', class: 'bg-red-50 text-red-700' },
-  refunded: { label: 'Refund', class: 'bg-amber-50 text-amber-700' },
-  partial_refunded: { label: 'Refund Sebagian', class: 'bg-amber-50 text-amber-700' },
+const statusLabels: Record<string, { label: string; tone: 'green' | 'red' | 'amber' | 'slate' }> = {
+  paid: { label: 'Lunas', tone: 'green' },
+  void: { label: 'Void', tone: 'red' },
+  refunded: { label: 'Refund', tone: 'amber' },
+  partial_refunded: { label: 'Refund Sebagian', tone: 'amber' },
 }
 
 export function SalesPage() {
@@ -24,7 +24,7 @@ export function SalesPage() {
     setSearch(searchInput.trim())
   }
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.sales.list({ q: search || undefined }),
     queryFn: () => api.get<PaginatedResponse<Sale>>(salesPath),
     staleTime: 0,
@@ -32,22 +32,24 @@ export function SalesPage() {
     refetchOnWindowFocus: true,
   })
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <TableSkeleton rows={7} />
+  if (isError) return <ErrorState message="Gagal memuat transaksi." onRetry={() => refetch()} />
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Transaksi</h1>
-        <p className="text-sm text-slate-500">Riwayat transaksi penjualan</p>
-      </div>
+      <PageHeader title="Transaksi" subtitle="Riwayat transaksi penjualan" />
 
       <form onSubmit={handleSearch} className="mb-4 flex gap-2">
         <input
+          id="sales-search"
+          name="sales-search"
           type="search"
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
           placeholder="Cari invoice atau kasir..."
           className="input max-w-sm"
+          aria-label="Cari invoice atau kasir"
+          autoComplete="off"
         />
         <button type="submit" className="btn-primary">Cari</button>
       </form>
@@ -66,7 +68,7 @@ export function SalesPage() {
           </thead>
           <tbody>
             {data?.data?.map((sale) => {
-              const st = statusLabels[sale.status] ?? { label: sale.status, class: 'bg-slate-100 text-slate-600' }
+              const st = statusLabels[sale.status] ?? { label: sale.status, tone: 'slate' as const }
               return (
                 <tr key={sale.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="px-4 py-3">
@@ -78,9 +80,7 @@ export function SalesPage() {
                   <td className="px-4 py-3 text-slate-700">{sale.cashier?.name ?? '-'}</td>
                   <td className="px-4 py-3 text-right font-mono font-medium">{formatCurrency(sale.grandTotal)}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${st.class}`}>
-                      {st.label}
-                    </span>
+                    <StatusBadge tone={st.tone}>{st.label}</StatusBadge>
                   </td>
                   <td className="px-4 py-3">
                     <Link to={`/dashboard/sales/${sale.id}`} className="text-xs text-primary-600 hover:underline">
@@ -92,7 +92,7 @@ export function SalesPage() {
             })}
             {(!data?.data || data.data.length === 0) && (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
                   {search ? 'Transaksi tidak ditemukan' : 'Belum ada transaksi'}
                 </td>
               </tr>

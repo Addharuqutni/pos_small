@@ -52,7 +52,7 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? titleId : undefined}
@@ -61,14 +61,14 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
     >
       <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
 
-      <div className={cn('relative z-10 w-full max-w-lg rounded-xl bg-white p-6 shadow-xl', className)}>
+      <div className={cn('relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-4 shadow-xl sm:p-6', className)}>
         {title && (
           <div className="mb-4 flex items-center justify-between">
             <h2 id={titleId} className="text-lg font-semibold text-slate-900">{title}</h2>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              className="icon-button -mr-2"
               aria-label="Tutup"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">

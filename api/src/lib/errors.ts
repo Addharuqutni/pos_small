@@ -30,7 +30,8 @@ export class TooManyRequests extends AppError {
   constructor(message = 'Too many requests') { super(429, message) }
 }
 
-export async function errorHandler(app: FastifyInstance) {
+/** Attach the app-wide error handler on the root Fastify instance (not via register). */
+export function errorHandler(app: FastifyInstance) {
   app.setErrorHandler((error: Error, _request: FastifyRequest, reply: FastifyReply) => {
     if (error instanceof AppError) {
       return reply.status(error.statusCode).send({

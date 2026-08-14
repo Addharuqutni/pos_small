@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
-import { Button, Input, Modal, PageSpinner } from '@/components/ui'
+import { Button, Input, Modal, PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { Plus, Edit2, Power } from 'lucide-react'
 import type { Category } from '@/types'
 
@@ -20,7 +20,7 @@ export function CategoriesPage() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Category | null>(null)
 
-  const { data: categories, isLoading } = useQuery({
+  const { data: categories, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.categories.list(),
     queryFn: () => api.get<Category[]>('/categories'),
   })
@@ -69,19 +69,16 @@ export function CategoriesPage() {
     saveMutation.mutate({ ...data, id: editing?.id })
   }
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <TableSkeleton rows={5} cols={[30, 14, 12]} />
+  if (isError) return <ErrorState message="Gagal memuat kategori." onRetry={() => refetch()} />
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Kategori</h1>
-          <p className="text-sm text-slate-500">Kelola kategori produk</p>
-        </div>
+      <PageHeader title="Kategori" subtitle="Kelola kategori produk">
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" /> Tambah Kategori
         </Button>
-      </div>
+      </PageHeader>
 
       {toggleMutation.isError && (
         <p className="mb-4 text-sm text-red-600" role="alert">
@@ -103,24 +100,22 @@ export function CategoriesPage() {
               <tr key={cat.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-3 font-medium text-slate-900">{cat.name}</td>
                 <td className="px-4 py-3">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                    cat.isActive ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'
-                  }`}>
+                  <StatusBadge tone={cat.isActive ? 'green' : 'slate'}>
                     {cat.isActive ? 'Aktif' : 'Nonaktif'}
-                  </span>
+                  </StatusBadge>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1">
                     <button
                       onClick={() => openEdit(cat)}
-                      className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      className="icon-button"
                       aria-label={`Edit ${cat.name}`}
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => toggleMutation.mutate(cat)}
-                      className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      className="icon-button"
                       aria-label={`${cat.isActive ? 'Nonaktifkan' : 'Aktifkan'} ${cat.name}`}
                     >
                       <Power className="h-4 w-4" />
@@ -131,7 +126,7 @@ export function CategoriesPage() {
             ))}
             {(!categories || categories.length === 0) && (
               <tr>
-                <td colSpan={3} className="px-4 py-12 text-center text-slate-400">
+                <td colSpan={3} className="px-4 py-12 text-center text-slate-500">
                   Belum ada kategori
                 </td>
               </tr>

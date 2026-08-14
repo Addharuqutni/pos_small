@@ -29,9 +29,12 @@ function lastSevenDays(today = new Date()) {
   })
 }
 
-function barHeight(value, max) {
-  if (value <= 0 || max <= 0) return 8
-  return Math.max(8, Math.round((value / max) * 100))
+function niceChartMax(value) {
+  if (value <= 0) return 1
+  const magnitude = 10 ** Math.floor(Math.log10(value))
+  const normalized = value / magnitude
+  const ceiling = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10
+  return ceiling * magnitude
 }
 
 assert.equal(localDateInputValue(new Date(2026, 6, 2, 23, 30)), '2026-07-02')
@@ -48,10 +51,10 @@ assert.deepEqual(lastSevenDays(new Date(2026, 6, 2)), [
   '2026-07-01',
   '2026-07-02',
 ])
-assert.equal(barHeight(0, 0), 8)
-assert.equal(barHeight(0, 100), 8)
-assert.equal(barHeight(50, 100), 50)
-assert.equal(barHeight(1, 100), 8)
-assert.equal(barHeight(100, 100), 100)
+assert.equal(niceChartMax(0), 1)
+assert.equal(niceChartMax(1), 1)
+assert.equal(niceChartMax(11), 20)
+assert.equal(niceChartMax(201), 500)
+assert.equal(niceChartMax(999), 1000)
 
 console.log('dashboard-home self-check passed')

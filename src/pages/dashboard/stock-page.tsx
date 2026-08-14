@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { formatDate } from '@/lib/utils'
-import { Button, Input, Select, Modal, PageSpinner } from '@/components/ui'
+import { Button, Input, Select, Modal, PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { Plus } from 'lucide-react'
 import type { StockMovement, Product, PaginatedResponse } from '@/types'
 
@@ -36,7 +36,7 @@ export function StockPage() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.stock.movements({}),
     queryFn: () => api.get<PaginatedResponse<StockMovement>>('/stock/movements'),
   })
@@ -75,20 +75,17 @@ export function StockPage() {
     label: p.name,
   }))
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <TableSkeleton rows={7} />
+  if (isError) return <ErrorState message="Gagal memuat riwayat stok." onRetry={() => refetch()} />
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Stok</h1>
-          <p className="text-sm text-slate-500">Riwayat pergerakan stok</p>
-        </div>
+      <PageHeader title="Stok" subtitle="Riwayat pergerakan stok">
         <Button onClick={openForm}>
-          <Plus className="mr-1 h-4 w-4" />
+          <Plus className="h-4 w-4" />
           Koreksi Stok
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="card overflow-x-auto p-0">
         <table className="w-full text-sm">
@@ -109,9 +106,7 @@ export function StockPage() {
                 <td className="px-4 py-3 text-slate-500 text-xs">{formatDate(m.createdAt)}</td>
                 <td className="px-4 py-3 font-medium text-slate-900">{m.productName ?? m.productId}</td>
                 <td className="px-4 py-3">
-                  <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                    {typeLabels[m.type] ?? m.type}
-                  </span>
+                  <StatusBadge>{typeLabels[m.type] ?? m.type}</StatusBadge>
                 </td>
                 <td className={`px-4 py-3 text-right font-mono font-medium ${m.qtyChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {m.qtyChange > 0 ? '+' : ''}{m.qtyChange}
@@ -123,7 +118,7 @@ export function StockPage() {
             ))}
             {(!data?.data || data.data.length === 0) && (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
                   Belum ada pergerakan stok
                 </td>
               </tr>
@@ -141,13 +136,13 @@ export function StockPage() {
             <label htmlFor="stock-notes" className="mb-1 block text-sm font-medium text-slate-700">Catatan</label>
             <textarea
               id="stock-notes"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="input"
               rows={3}
               {...register('notes')}
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={closeForm}>Batal</Button>
+            <Button type="button" variant="secondary" onClick={closeForm}>Batal</Button>
             <Button type="submit" disabled={adjustMutation.isPending}>
               {adjustMutation.isPending ? 'Menyimpan...' : 'Simpan'}
             </Button>

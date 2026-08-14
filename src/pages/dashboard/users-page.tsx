@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { useAuth } from '@/contexts/auth-context'
-import { Button, Input, Select, Modal, PageSpinner } from '@/components/ui'
+import { Button, Input, Select, Modal, PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { Plus, Edit2, Power, KeyRound } from 'lucide-react'
 import type { User } from '@/types'
 
@@ -25,7 +25,7 @@ export function UsersPage() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<User | null>(null)
 
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.users.list(),
     queryFn: () => api.get<User[]>('/users'),
   })
@@ -90,7 +90,8 @@ export function UsersPage() {
     )
   }
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <TableSkeleton rows={5} cols={[18, 24, 10, 12, 14]} />
+  if (isError) return <ErrorState message="Gagal memuat pengguna." onRetry={() => refetch()} />
 
   const roleOptions = [
     { value: 'admin', label: 'Admin' },
@@ -99,15 +100,11 @@ export function UsersPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Pengguna</h1>
-          <p className="text-sm text-slate-500">Kelola akun pengguna</p>
-        </div>
+      <PageHeader title="Pengguna" subtitle="Kelola akun pengguna">
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" /> Tambah Pengguna
         </Button>
-      </div>
+      </PageHeader>
 
       {(toggleMutation.isError || resetPwMutation.isError) && (
         <p className="mb-4 text-sm text-red-600" role="alert">
@@ -142,22 +139,20 @@ export function UsersPage() {
                 <td className="px-4 py-3 text-slate-500">{u.email}</td>
                 <td className="px-4 py-3 capitalize text-slate-600">{u.role}</td>
                 <td className="px-4 py-3">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                    u.isActive ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'
-                  }`}>
+                  <StatusBadge tone={u.isActive ? 'green' : 'slate'}>
                     {u.isActive ? 'Aktif' : 'Nonaktif'}
-                  </span>
+                  </StatusBadge>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1">
-                    <button onClick={() => openEdit(u)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label={`Edit ${u.name}`}>
+                    <button onClick={() => openEdit(u)} className="icon-button" aria-label={`Edit ${u.name}`}>
                       <Edit2 className="h-4 w-4" />
                     </button>
-                    <button onClick={() => resetPassword(u)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label={`Reset password ${u.name}`}>
+                    <button onClick={() => resetPassword(u)} className="icon-button" aria-label={`Reset password ${u.name}`}>
                       <KeyRound className="h-4 w-4" />
                     </button>
                     {u.id !== currentUser?.id && (
-                      <button onClick={() => toggleMutation.mutate(u)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label={`${u.isActive ? 'Nonaktifkan' : 'Aktifkan'} ${u.name}`}>
+                      <button onClick={() => toggleMutation.mutate(u)} className="icon-button" aria-label={`${u.isActive ? 'Nonaktifkan' : 'Aktifkan'} ${u.name}`}>
                         <Power className="h-4 w-4" />
                       </button>
                     )}

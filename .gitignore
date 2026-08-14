@@ -10,3 +10,4 @@ api/.env.*
 !api/.env.example
 .DS_Store
 docs/
+.claude/

@@ -4,10 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { Button, Modal, Input, PageSpinner } from '@/components/ui'
+import { Button, Modal, Input, PageHeader, PageSpinner, StatusBadge } from '@/components/ui'
 import { Receipt } from '@/components/receipt/receipt'
 import type { Sale, StoreSettings, PaymentMethod } from '@/types'
-import { saleStatusLabels, saleStatusBadgeClass, paymentMethodLabels } from '@/types'
+import { saleStatusLabels, paymentMethodLabels } from '@/types'
 
 interface RefundFormItem {
   saleItemId: string
@@ -110,35 +110,29 @@ export function SaleDetailDashboardPage() {
   if (isLoading) return <PageSpinner />
   if (!sale) return <div className="p-6 text-center text-slate-400">Transaksi tidak ditemukan</div>
 
-  const st = {
-    label: saleStatusLabels[sale.status],
-    class: saleStatusBadgeClass[sale.status],
-  }
+  const statusTone = sale.status === 'paid'
+    ? 'green'
+    : sale.status === 'void' || sale.status === 'refunded'
+      ? 'red'
+      : 'amber'
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Detail Transaksi</h1>
-          <p className="text-sm text-slate-500">Invoice {sale.invoiceNo}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={() => navigate('/dashboard/sales')}>
-            ← Kembali
-          </Button>
-          {sale.status === 'paid' && (
-            <>
-              <Button variant="danger" onClick={handleVoid} disabled={voidMutation.isPending}>
-                {voidMutation.isPending ? 'Memproses…' : 'Void'}
-              </Button>
-              <Button variant="secondary" onClick={openRefundModal}>
-                Refund
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
+      <PageHeader title="Detail Transaksi" subtitle={`Invoice ${sale.invoiceNo}`}>
+        <Button variant="ghost" onClick={() => navigate('/dashboard/sales')}>
+          ← Kembali
+        </Button>
+        {sale.status === 'paid' && (
+          <>
+            <Button variant="danger" onClick={handleVoid} disabled={voidMutation.isPending}>
+              {voidMutation.isPending ? 'Memproses…' : 'Void'}
+            </Button>
+            <Button variant="secondary" onClick={openRefundModal}>
+              Refund
+            </Button>
+          </>
+        )}
+      </PageHeader>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left: Sale info */}
@@ -161,9 +155,7 @@ export function SaleDetailDashboardPage() {
               <div>
                 <span className="text-slate-500">Status</span>
                 <p>
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${st.class}`}>
-                    {st.label}
-                  </span>
+                  <StatusBadge tone={statusTone}>{saleStatusLabels[sale.status]}</StatusBadge>
                 </p>
               </div>
             </div>
@@ -275,6 +267,8 @@ export function SaleDetailDashboardPage() {
             {refundItems.map((item, idx) => (
               <div key={item.saleItemId} className="flex items-center gap-3 rounded border p-2">
                 <input
+                  id={`refund-item-${item.saleItemId}`}
+                  name={`refund-item-${item.saleItemId}`}
                   type="checkbox"
                   checked={item.checked}
                   onChange={(e) => {

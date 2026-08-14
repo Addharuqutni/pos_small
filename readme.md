@@ -82,7 +82,7 @@ npm run dev               # http://localhost:3000 (Vite)
 | `npm run start` | Run the compiled `dist/server.js` with `.env` |
 | `npm run db:generate` | Generate Drizzle migrations |
 | `npm run db:migrate` | Apply migrations |
-| `npm run db:seed` | Seed the owner account and default settings row |
+| `npm run db:seed` | Seed owner (+ optional cashier if `CASHIER_*` set) and default settings |
 | `npm run check` | Backend TypeScript check (`tsc --noEmit`) |
 | `npm test` | Run `src/lib/sales-rules.self-check.ts` (a standalone self-check, not a test runner) |
 
@@ -99,6 +99,9 @@ See [`api/.env.example`](api/.env.example).
 | `OWNER_EMAIL` | Seed only | Initial owner account email | `owner@pos.local` |
 | `OWNER_PASSWORD` | Seed only | Initial owner password | `change-me` |
 | `OWNER_NAME` | Seed only | Initial owner display name | `Owner` |
+| `CASHIER_EMAIL` | Seed only (optional) | Cashier account email for POS QA | `cashier@pos.local` |
+| `CASHIER_PASSWORD` | Seed only (optional) | Cashier password | `change-me` |
+| `CASHIER_NAME` | Seed only (optional) | Cashier display name | `Cashier` |
 | `PORT` | No | Backend port (defaults to `4000`) | `4000` |
 
 ## API
