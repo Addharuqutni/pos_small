@@ -4,7 +4,7 @@ import { BadRequest } from './errors.js'
 export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
   const result = schema.safeParse(data)
   if (!result.success) {
-    throw new BadRequest('Validation failed', result.error.issues)
+    throw new BadRequest('Validasi gagal', result.error.issues)
   }
   return result.data
 }
@@ -14,7 +14,7 @@ export function validateIdParam(params: unknown, field = 'id'): string {
   const schema = z.object({ [field]: z.string().uuid() })
   const result = schema.safeParse(params)
   if (!result.success) {
-    throw new BadRequest(`${field} must be a valid UUID`)
+    throw new BadRequest(`${field} harus berupa UUID yang valid`)
   }
   return result.data[field] as string
 }

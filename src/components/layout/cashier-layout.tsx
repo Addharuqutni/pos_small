@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { CartProvider } from '@/contexts/cart-context'
+import { OfflineBanner } from '@/components/offline-banner'
 
 /**
  * Cashier layout — full-screen, no sidebar.
@@ -8,7 +9,8 @@ import { CartProvider } from '@/contexts/cart-context'
 export function CashierLayout() {
   return (
     <CartProvider>
-      <div className="flex h-screen flex-col overflow-hidden bg-slate-100">
+      <div className="flex h-screen flex-col overflow-hidden bg-pos-bg">
+        <OfflineBanner />
         <Outlet />
       </div>
     </CartProvider>

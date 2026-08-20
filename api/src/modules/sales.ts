@@ -1,10 +1,10 @@
 import type { FastifyInstance } from 'fastify'
-import { eq, and, or, ilike, desc, gte, lte, count, inArray } from 'drizzle-orm'
+import { eq, and, or, ilike, desc, gte, lte, count, inArray, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/client.js'
 import {
   sales, saleItems, payments, products, shifts,
-  stockMovements, refunds, refundItems, settings, users,
+  stockMovements, refunds, refundItems, settings, users, promos,
 } from '../db/schema.js'
 import { validate, validateIdParam } from '../lib/validation.js'
 import { escapeLikePattern, paginationSchema, validateQuery } from '../lib/query-validation.js'
@@ -12,7 +12,10 @@ import { requireAuth, requireRole } from '../lib/auth.js'
 import { logAudit } from '../lib/audit.js'
 import { NotFound, BadRequest } from '../lib/errors.js'
 import { nanoid } from 'nanoid'
-import { getLineDiscountError, getRefundQuantityError, lineSubtotal } from '../lib/sales-rules.js'
+import {
+  getLineDiscountError, getRefundQuantityError, lineSubtotal,
+  computePromoDiscount, getSaleDiscountError,
+} from '../lib/sales-rules.js'
 
 type RefundItemRow = typeof refundItems.$inferSelect
 
@@ -33,6 +36,8 @@ const paymentSchema = z.object({
 const checkoutSchema = z.object({
   items: z.array(checkoutItemSchema).min(1),
   payments: z.array(paymentSchema).min(1),
+  discount: z.number().int().min(0).optional(), // manual sale-level discount
+  promoCode: z.string().trim().max(50).optional(),
 })
 
 const refundSchema = z.object({
@@ -63,7 +68,7 @@ function generateInvoiceNo(): string {
 
 async function saleWithDetails(id: string) {
   const [sale] = await db.select().from(sales).where(eq(sales.id, id)).limit(1)
-  if (!sale) throw new NotFound('Sale not found')
+  if (!sale) throw new NotFound('Transaksi tidak ditemukan')
 
   const [items, paymentRows, refundRows, cashierRows] = await Promise.all([
     db.select().from(saleItems).where(eq(saleItems.saleId, id)),
@@ -126,7 +131,7 @@ export async function saleRoutes(app: FastifyInstance) {
       .orderBy(desc(shifts.openedAt))
       .limit(1)
 
-    if (!shift) throw new BadRequest('No open shift')
+    if (!shift) throw new BadRequest('Shift belum dibuka')
 
     // Load settings for tax
     const [storeSettings] = await db.select().from(settings).limit(1)
@@ -148,12 +153,12 @@ export async function saleRoutes(app: FastifyInstance) {
       // Validate all products exist and have stock
       for (const item of body.items) {
         const product = productMap.get(item.productId)
-        if (!product) throw new NotFound(`Product ${item.productId} not found`)
-        if (!product.isActive) throw new BadRequest(`Product "${product.name}" is inactive`)
+    if (!product) throw new NotFound(`Produk ${item.productId} tidak ditemukan`)
+    if (!product.isActive) throw new BadRequest(`Produk "${product.name}" tidak aktif`)
         const discountError = getLineDiscountError(product.price, item.discount ?? 0, product.name)
         if (discountError) throw new BadRequest(discountError)
         if (product.trackStock && !product.allowNegativeStock && product.stock < item.qty) {
-          throw new BadRequest(`Insufficient stock for "${product.name}": have ${product.stock}, need ${item.qty}`)
+          throw new BadRequest(`Stok tidak cukup untuk "${product.name}": tersedia ${product.stock}, dibutuhkan ${item.qty}`)
         }
       }
 
@@ -174,13 +179,49 @@ export async function saleRoutes(app: FastifyInstance) {
         }
       })
 
-      const discountTotal = body.items.reduce((sum, item) => sum + (item.discount ?? 0) * item.qty, 0)
-      const taxTotal = taxEnabled ? Math.round(subtotal * taxRate / 100) : 0
-      const grandTotal = subtotal + taxTotal
+      const lineDiscountTotal = body.items.reduce((sum, item) => sum + (item.discount ?? 0) * item.qty, 0)
+
+      // Promo + sale-level discount
+      let promo: typeof promos.$inferSelect | null = null
+      let promoDiscount = 0
+      if (body.promoCode) {
+        const now = new Date()
+        const [found] = await tx
+          .select()
+          .from(promos)
+          .where(
+            and(
+              eq(promos.code, body.promoCode.toUpperCase()),
+              eq(promos.isActive, true),
+              lte(promos.startsAt, now),
+              or(isNull(promos.endsAt), gte(promos.endsAt, now)),
+            ),
+          )
+          .for('update')
+          .limit(1)
+        if (!found) throw new BadRequest('Promo tidak ditemukan atau sudah tidak berlaku')
+        if (found.usageLimit != null && found.usageCount >= found.usageLimit) {
+          throw new BadRequest('Promo sudah mencapai batas pemakaian')
+        }
+        if (subtotal < found.minPurchase) {
+          throw new BadRequest(`Minimal belanja untuk promo ini ${found.minPurchase}`)
+        }
+        promo = found
+        promoDiscount = computePromoDiscount(found.type, found.value, subtotal, found.maxDiscount)
+      }
+
+      const saleDiscount = body.discount ?? 0
+      const saleDiscountError = getSaleDiscountError(subtotal - promoDiscount, saleDiscount)
+      if (saleDiscountError) throw new BadRequest(saleDiscountError)
+
+      const taxable = subtotal - promoDiscount - saleDiscount
+      const taxTotal = taxEnabled ? Math.round(taxable * taxRate / 100) : 0
+      const grandTotal = taxable + taxTotal
+      const discountTotal = lineDiscountTotal + promoDiscount + saleDiscount
       const paidTotal = body.payments.reduce((sum, p) => sum + p.amount, 0)
 
       if (paidTotal < grandTotal) {
-        throw new BadRequest(`Insufficient payment: need ${grandTotal}, got ${paidTotal}`)
+        throw new BadRequest(`Pembayaran kurang: butuh ${grandTotal}, diterima ${paidTotal}`)
       }
 
       const changeTotal = paidTotal - grandTotal
@@ -197,8 +238,16 @@ export async function saleRoutes(app: FastifyInstance) {
         grandTotal,
         paidTotal,
         changeTotal,
+        discount: saleDiscount,
+        promoId: promo?.id ?? null,
+        promoCode: promo?.code ?? null,
+        promoDiscount,
         status: 'paid',
       }).returning()
+
+      if (promo) {
+        await tx.update(promos).set({ usageCount: promo.usageCount + 1, updatedAt: new Date() }).where(eq(promos.id, promo.id))
+      }
 
       // 4. Insert sale items
       const insertedItems = await tx.insert(saleItems).values(
@@ -330,8 +379,8 @@ export async function saleRoutes(app: FastifyInstance) {
     const id = validateIdParam(request.params)
 
     const [sale] = await db.select().from(sales).where(eq(sales.id, id)).limit(1)
-    if (!sale) throw new NotFound('Sale not found')
-    if (sale.status !== 'paid') throw new BadRequest('Can only void paid sales')
+    if (!sale) throw new NotFound('Transaksi tidak ditemukan')
+    if (sale.status !== 'paid') throw new BadRequest('Hanya transaksi berstatus lunas yang dapat dibatalkan')
 
     await db.transaction(async (tx) => {
       // Update sale status
@@ -368,7 +417,7 @@ export async function saleRoutes(app: FastifyInstance) {
       }, tx)
     })
 
-    return { message: 'Sale voided' }
+    return { message: 'Transaksi dibatalkan' }
   })
 
   // POST /api/sales/:id/refund
@@ -377,9 +426,9 @@ export async function saleRoutes(app: FastifyInstance) {
     const body = validate(refundSchema, request.body)
 
     const [sale] = await db.select().from(sales).where(eq(sales.id, id)).limit(1)
-    if (!sale) throw new NotFound('Sale not found')
+    if (!sale) throw new NotFound('Transaksi tidak ditemukan')
     if (sale.status !== 'paid' && sale.status !== 'partial_refunded') {
-      throw new BadRequest('Can only refund paid or partially refunded sales')
+      throw new BadRequest('Hanya transaksi lunas atau sebagian yang dapat dikembalikan')
     }
 
     const result = await db.transaction(async (tx) => {
@@ -398,7 +447,7 @@ export async function saleRoutes(app: FastifyInstance) {
       // Validate refund items
       const refundItemValues = body.items.map((ri) => {
         const saleItem = saleItemMap.get(ri.saleItemId)
-        if (!saleItem) throw new NotFound(`Sale item ${ri.saleItemId} not found`)
+        if (!saleItem) throw new NotFound(`Item transaksi ${ri.saleItemId} tidak ditemukan`)
         const refundError = getRefundQuantityError(saleItem.qty, totalRefundedQty.get(saleItem.id) ?? 0, ri.qty)
         if (refundError) throw new BadRequest(refundError)
         totalRefundedQty.set(saleItem.id, (totalRefundedQty.get(saleItem.id) ?? 0) + ri.qty)

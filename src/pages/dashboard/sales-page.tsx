@@ -9,9 +9,9 @@ import type { Sale, PaginatedResponse } from '@/types'
 
 const statusLabels: Record<string, { label: string; tone: 'green' | 'red' | 'amber' | 'slate' }> = {
   paid: { label: 'Lunas', tone: 'green' },
-  void: { label: 'Void', tone: 'red' },
-  refunded: { label: 'Refund', tone: 'amber' },
-  partial_refunded: { label: 'Refund Sebagian', tone: 'amber' },
+  void: { label: 'Batal', tone: 'red' },
+  refunded: { label: 'Pengembalian', tone: 'amber' },
+  partial_refunded: { label: 'Pengembalian sebagian', tone: 'amber' },
 }
 
 export function SalesPage() {
@@ -46,19 +46,19 @@ export function SalesPage() {
           type="search"
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Cari invoice atau kasir..."
+          placeholder="Cari faktur atau kasir..."
           className="input max-w-sm"
-          aria-label="Cari invoice atau kasir"
+          aria-label="Cari faktur atau kasir"
           autoComplete="off"
         />
         <button type="submit" className="btn-primary">Cari</button>
       </form>
 
-      <div className="card overflow-x-auto p-0">
+      <div className="table-shell">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left">
-              <th className="px-4 py-3 font-medium text-slate-600">Invoice</th>
+              <th className="px-4 py-3 font-medium text-slate-600">Faktur</th>
               <th className="px-4 py-3 font-medium text-slate-600">Waktu</th>
               <th className="px-4 py-3 font-medium text-slate-600">Kasir</th>
               <th className="px-4 py-3 font-medium text-slate-600 text-right">Total</th>

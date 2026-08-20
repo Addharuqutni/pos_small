@@ -49,7 +49,7 @@ export async function categoryRoutes(app: FastifyInstance) {
     const data = validate(updateSchema, request.body)
 
     const [before] = await db.select().from(categories).where(eq(categories.id, id)).limit(1)
-    if (!before) throw new NotFound('Category not found')
+    if (!before) throw new NotFound('Kategori tidak ditemukan')
 
     const [updated] = await db
       .update(categories)

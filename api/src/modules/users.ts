@@ -58,7 +58,7 @@ export async function userRoutes(app: FastifyInstance) {
 
     // Check duplicate email
     const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, data.email)).limit(1)
-    if (existing) throw new Conflict('Email already exists')
+    if (existing) throw new Conflict('Email sudah terdaftar')
 
     const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS)
     const [user] = await db
@@ -99,11 +99,11 @@ export async function userRoutes(app: FastifyInstance) {
       .from(users)
       .where(eq(users.id, id))
       .limit(1)
-    if (!before) throw new NotFound('User not found')
+    if (!before) throw new NotFound('Pengguna tidak ditemukan')
 
     if (data.email && data.email !== before.email) {
       const [dup] = await db.select({ id: users.id }).from(users).where(eq(users.email, data.email)).limit(1)
-      if (dup) throw new Conflict('Email already exists')
+      if (dup) throw new Conflict('Email sudah terdaftar')
     }
 
     const [updated] = await db
@@ -134,7 +134,7 @@ export async function userRoutes(app: FastifyInstance) {
     const { password } = validate(resetPasswordSchema, request.body)
 
     const [user] = await db.select({ id: users.id }).from(users).where(eq(users.id, id)).limit(1)
-    if (!user) throw new NotFound('User not found')
+    if (!user) throw new NotFound('Pengguna tidak ditemukan')
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
     await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id))
@@ -147,6 +147,6 @@ export async function userRoutes(app: FastifyInstance) {
       ipAddress: request.ip,
     })
 
-    return { message: 'Password reset' }
+    return { message: 'Kata sandi berhasil direset' }
   })
 }

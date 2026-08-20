@@ -59,12 +59,12 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
       aria-label={title ? undefined : 'Dialog'}
       tabIndex={-1}
     >
-      <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-950/55 backdrop-blur-[2px] transition-opacity" onClick={onClose} />
 
-      <div className={cn('relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-4 shadow-xl sm:p-6', className)}>
+      <div className={cn('relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-panel border border-slate-200 bg-white p-4 shadow-2xl sm:p-6', className)}>
         {title && (
           <div className="mb-4 flex items-center justify-between">
-            <h2 id={titleId} className="text-lg font-semibold text-slate-900">{title}</h2>
+            <h2 id={titleId} className="font-display text-lg font-semibold text-slate-950">{title}</h2>
             <button
               type="button"
               onClick={onClose}

@@ -57,7 +57,7 @@ export async function settingsRoutes(app: FastifyInstance) {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(${SETTINGS_LOCK_KEY})`)
 
       const [before] = await tx.select().from(settings).limit(1)
-      if (!before) throw new Error('Settings row missing — run seed first')
+      if (!before) throw new Error('Pengaturan belum tersedia — jalankan seed terlebih dahulu')
 
       const [row] = await tx
         .update(settings)

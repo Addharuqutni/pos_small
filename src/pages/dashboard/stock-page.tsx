@@ -14,8 +14,8 @@ const typeLabels: Record<string, string> = {
   sale: 'Penjualan',
   adjustment: 'Koreksi',
   return: 'Retur',
-  restock: 'Restock',
-  refund: 'Refund',
+  restock: 'Restok',
+  refund: 'Pengembalian',
 }
 
 const adjustSchema = z.object({
@@ -29,7 +29,7 @@ type AdjustForm = z.infer<typeof adjustSchema>
 
 const typeOptions = [
   { value: 'adjustment', label: 'Koreksi' },
-  { value: 'restock', label: 'Restock' },
+  { value: 'restock', label: 'Restok' },
 ]
 
 export function StockPage() {
@@ -87,7 +87,7 @@ export function StockPage() {
         </Button>
       </PageHeader>
 
-      <div className="card overflow-x-auto p-0">
+      <div className="table-shell">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left">

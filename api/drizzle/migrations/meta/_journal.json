@@ -8,6 +8,13 @@
       "when": 1783418211219,
       "tag": "0000_fat_unus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787140746145,
+      "tag": "0001_red_maverick",
+      "breakpoints": true
     }
   ]
 }

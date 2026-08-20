@@ -1,5 +1,5 @@
 import { formatCurrency, formatDate } from '@/lib/utils'
-import type { Sale, StoreSettings } from '@/types'
+import { paymentMethodLabels, type Sale, type StoreSettings } from '@/types'
 
 interface ReceiptProps {
   sale: Sale
@@ -22,7 +22,7 @@ export function Receipt({ sale, settings, copy }: ReceiptProps) {
 
       <div className="flex justify-between">
         <span>No: {sale.invoiceNo}</span>
-        {copy && <span className="font-bold">[COPY]</span>}
+        {copy && <span className="font-bold">[SALINAN]</span>}
       </div>
       <p>{formatDate(sale.createdAt)}</p>
       <p>Kasir: {sale.cashier?.name ?? '-'}</p>
@@ -83,7 +83,7 @@ export function Receipt({ sale, settings, copy }: ReceiptProps) {
       {/* Payment */}
       {sale.payments.map((p) => (
         <div key={p.id} className="flex justify-between">
-          <span className="capitalize">{p.method}</span>
+          <span className="capitalize">{paymentMethodLabels[p.method]}</span>
           <span>{formatCurrency(p.amount)}</span>
         </div>
       ))}

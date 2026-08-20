@@ -11,9 +11,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, disabled, children, ...props }, ref) => {
     const variants = {
       primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
-      secondary: 'bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300',
-      danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
-      success: 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800',
+      secondary: 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100',
+      danger: 'bg-pos-danger text-white hover:bg-red-700 active:bg-red-800',
+      success: 'bg-pos-success text-white hover:bg-green-700 active:bg-green-800',
       ghost: 'text-slate-600 hover:bg-slate-100',
     }
 
@@ -27,7 +27,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors motion-reduce:transition-none',
+          'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg font-bold tracking-[-0.01em] transition-[background-color,border-color,color,box-shadow,transform] duration-200 motion-reduce:transition-none',
+          'hover:-translate-y-px active:translate-y-0',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
           'disabled:pointer-events-none disabled:opacity-50',
           variants[variant],

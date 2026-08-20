@@ -32,7 +32,7 @@ export function ShiftReportPage() {
     <div>
       <PageHeader title="Laporan Shift" subtitle="Rekonsiliasi kas per shift" />
 
-      <div className="card overflow-x-auto p-0">
+      <div className="table-shell">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">

@@ -12,22 +12,22 @@ export class AppError extends Error {
 }
 
 export class BadRequest extends AppError {
-  constructor(message = 'Bad request', issues?: unknown[]) { super(400, message, issues) }
+  constructor(message = 'Permintaan tidak valid', issues?: unknown[]) { super(400, message, issues) }
 }
 export class Unauthorized extends AppError {
-  constructor(message = 'Unauthorized') { super(401, message) }
+  constructor(message = 'Tidak terautentikasi') { super(401, message) }
 }
 export class Forbidden extends AppError {
-  constructor(message = 'Forbidden') { super(403, message) }
+  constructor(message = 'Akses ditolak') { super(403, message) }
 }
 export class NotFound extends AppError {
-  constructor(message = 'Not found') { super(404, message) }
+  constructor(message = 'Tidak ditemukan') { super(404, message) }
 }
 export class Conflict extends AppError {
-  constructor(message = 'Conflict') { super(409, message) }
+  constructor(message = 'Konflik') { super(409, message) }
 }
 export class TooManyRequests extends AppError {
-  constructor(message = 'Too many requests') { super(429, message) }
+  constructor(message = 'Terlalu banyak permintaan') { super(429, message) }
 }
 
 /** Attach the app-wide error handler on the root Fastify instance (not via register). */
@@ -45,6 +45,6 @@ export function errorHandler(app: FastifyInstance) {
       return reply.status(fastifyErr.statusCode).send({ message: error.message })
     }
     app.log.error(error)
-    return reply.status(500).send({ message: 'Internal server error' })
+    return reply.status(500).send({ message: 'Kesalahan server internal' })
   })
 }

@@ -8,7 +8,7 @@
     "check": "tsc -b",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "npm --prefix api test"
+    "test": "node --test src/**/*.test.ts && npm --prefix api test"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",

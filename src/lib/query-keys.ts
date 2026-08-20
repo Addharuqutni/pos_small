@@ -37,4 +37,16 @@ export const queryKeys = {
   settings: {
     all: ['settings'] as const,
   },
+  promos: {
+    all: ['promos'] as const,
+    list: () => ['promos', 'list'] as const,
+  },
+  suppliers: {
+    all: ['suppliers'] as const,
+    list: () => ['suppliers', 'list'] as const,
+  },
+  purchases: {
+    list: () => ['purchases', 'list'] as const,
+    detail: (id: string) => ['purchases', id] as const,
+  },
 } as const

@@ -9,17 +9,29 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { formatCurrency } from '@/lib/utils'
 import { Button, Input, Modal } from '@/components/ui'
 import { Receipt } from '@/components/receipt/receipt'
+import { BarcodeScanner } from '@/components/barcode-scanner'
+import { printThermal } from '@/lib/thermal-printer'
 import {
   Search, Trash2, Plus, Minus, LogOut, CreditCard,
-  Banknote, QrCode, ArrowRightLeft, Printer,
+  Banknote, QrCode, ArrowRightLeft, Printer, ScanLine, Tag, X,
 } from 'lucide-react'
-import type { Product, Sale, Shift, PaymentMethod, PaginatedResponse, StoreSettings } from '@/types'
+import type { Product, Sale, Shift, PaymentMethod, PaginatedResponse, StoreSettings, ValidatedPromo } from '@/types'
+
+function promoDiscountFor(promo: ValidatedPromo | null, netLineTotal: number): number {
+  if (!promo) return 0
+  if (promo.type === 'percent') {
+    let amount = Math.round((netLineTotal * promo.value) / 100)
+    if (promo.maxDiscount != null) amount = Math.min(amount, promo.maxDiscount)
+    return Math.max(0, Math.min(amount, netLineTotal))
+  }
+  return Math.max(0, Math.min(promo.value, netLineTotal))
+}
 
 export function CashierPosPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { items, addItem, removeItem, updateQty, clearCart, subtotal, discountTotal, itemCount } = useCart()
+  const { items, addItem, removeItem, updateQty, clearCart, subtotal, discountTotal, itemCount, saleDiscount, setSaleDiscount } = useCart()
 
   const [search, setSearch] = useState('')
   const [showPayment, setShowPayment] = useState(false)
@@ -27,6 +39,10 @@ export function CashierPosPage() {
   const [cashReceived, setCashReceived] = useState('')
   const [completedSale, setCompletedSale] = useState<Sale | null>(null)
   const [shiftError, setShiftError] = useState('')
+  const [showScanner, setShowScanner] = useState(false)
+  const [promoCode, setPromoCode] = useState('')
+  const [appliedPromo, setAppliedPromo] = useState<ValidatedPromo | null>(null)
+  const [promoError, setPromoError] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
   const debouncedSearch = useDebounce(search, 200)
 
@@ -69,18 +85,48 @@ export function CashierPosPage() {
     mutationFn: async (payload: {
       items: { productId: string; qty: number; discount: number }[]
       payments: { method: PaymentMethod; amount: number }[]
+      discount: number
+      promoCode?: string
     }) => api.post<Sale>('/sales', payload),
     onSuccess: (sale) => {
       setCompletedSale(sale)
       clearCart()
       setShowPayment(false)
+      setAppliedPromo(null)
+      setPromoCode('')
+      setPromoError('')
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.sales() })
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.lowStock() })
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.shifts() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.promos.all })
     },
   })
+
+  const promoMutation = useMutation({
+    mutationFn: (code: string) =>
+      api.get<ValidatedPromo>(`/promos/validate?code=${encodeURIComponent(code)}&subtotal=${netLineTotal}`),
+    onSuccess: (promo) => {
+      setAppliedPromo(promo)
+      setPromoError('')
+    },
+    onError: (err) => {
+      setAppliedPromo(null)
+      setPromoError(err instanceof Error ? err.message : 'Promo tidak valid')
+    },
+  })
+
+  const applyPromo = () => {
+    if (!promoCode.trim()) return
+    promoMutation.mutate(promoCode.trim())
+  }
+
+  const removePromo = () => {
+    setAppliedPromo(null)
+    setPromoCode('')
+    setPromoError('')
+  }
 
   const maxSellableQty = (product: Product) => {
     if (!product.trackStock || product.allowNegativeStock) return Number.MAX_SAFE_INTEGER
@@ -103,8 +149,11 @@ export function CashierPosPage() {
 
   // Calculations
   const taxRate = settings?.taxEnabled ? settings.taxRate : 0
-  const taxTotal = Math.round((subtotal - discountTotal) * taxRate / 100)
-  const grandTotal = subtotal - discountTotal + taxTotal
+  const netLineTotal = subtotal - discountTotal
+  const promoDiscount = promoDiscountFor(appliedPromo, netLineTotal)
+  const taxable = netLineTotal - promoDiscount - saleDiscount
+  const taxTotal = Math.round(taxable * taxRate / 100)
+  const grandTotal = taxable + taxTotal
   const cashReceivedNum = Math.max(0, parseInt(cashReceived) || 0)
   const change = paymentMethod === 'cash' ? Math.max(0, cashReceivedNum - grandTotal) : 0
 
@@ -127,11 +176,19 @@ export function CashierPosPage() {
         discount: i.discount,
       })),
       payments: [{ method: paymentMethod, amount: paidAmount }],
+      discount: saleDiscount,
+      promoCode: appliedPromo?.code,
     })
   }
 
   const handlePrint = () => {
     window.print()
+  }
+
+  const handleThermalPrint = async () => {
+    if (!completedSale) return
+    const printed = await printThermal(completedSale, settings ?? null)
+    if (!printed) handlePrint()
   }
 
   const handleLogout = async () => {
@@ -146,6 +203,13 @@ export function CashierPosPage() {
       addSafeItem(product)
       setSearch('')
     }
+  }
+
+  const handleBarcodeDetect = async (code: string) => {
+    const res = await api.get<PaginatedResponse<Product>>(`/products?search=${encodeURIComponent(code)}&active=true`)
+    const match = res.data.find((p) => p.barcode === code) ?? res.data[0]
+    if (match) addSafeItem(match)
+    setShowScanner(false)
   }
 
   return (
@@ -177,15 +241,24 @@ export function CashierPosPage() {
                   id="cashier-product-search"
                   name="cashier-product-search"
                   type="search"
-                  placeholder="Cari produk atau scan barcode..."
+                  placeholder="Cari produk atau pindai barcode..."
                   className="input h-14 rounded-xl pl-12 text-base"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
-                  aria-label="Cari produk atau scan barcode"
+                  aria-label="Cari produk atau pindai barcode"
                   autoComplete="off"
                 />
               </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowScanner(true)}
+                aria-label="Pindai barcode dengan kamera"
+              >
+                <ScanLine className="h-5 w-5" /> Scan
+              </Button>
 
               <div className="hidden items-center justify-end gap-3 xl:flex">
                 <span className="max-w-40 truncate text-sm font-medium text-slate-600">{user?.name}</span>
@@ -259,7 +332,7 @@ export function CashierPosPage() {
               <div className="flex h-full min-h-80 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white text-slate-500">
                 <div className="text-center">
                   <Search className="mx-auto mb-3 h-12 w-12" />
-                  <p className="font-medium">Ketik nama produk atau scan barcode</p>
+                  <p className="font-medium">Ketik nama produk atau pindai barcode</p>
                 </div>
               </div>
             )}
@@ -310,7 +383,7 @@ export function CashierPosPage() {
                           onClick={() => setSafeQty(item.product, item.qty - 1)}
                           className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-white disabled:text-slate-400"
                           disabled={item.qty <= 1}
-                          aria-label="Kurangi qty"
+                          aria-label="Kurangi jumlah"
                         >
                           <Minus className="h-4 w-4" />
                         </button>
@@ -322,13 +395,13 @@ export function CashierPosPage() {
                           value={item.qty}
                           onChange={(e) => setSafeQty(item.product, parseInt(e.target.value) || 1)}
                           className="w-14 border-0 bg-transparent px-2 py-1 text-center text-sm font-bold text-slate-900 focus:outline-none focus:ring-0"
-                          aria-label={`Qty ${item.product.name}`}
+                          aria-label={`Jumlah ${item.product.name}`}
                         />
                         <button
                           onClick={() => setSafeQty(item.product, item.qty + 1)}
                           className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-white disabled:text-slate-400"
                           disabled={item.qty >= maxSellableQty(item.product)}
-                          aria-label="Tambah qty"
+                          aria-label="Tambah jumlah"
                         >
                           <Plus className="h-4 w-4" />
                         </button>
@@ -345,6 +418,52 @@ export function CashierPosPage() {
 
           {/* Cart footer — totals + pay button */}
           <div className="space-y-3 border-t border-slate-200 bg-slate-50 p-4">
+            {/* Promo + sale discount */}
+            <div className="space-y-2">
+              {appliedPromo ? (
+                <div className="flex items-center justify-between rounded-lg bg-green-50 px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-green-600" />
+                    <span className="font-medium text-green-700">
+                      {appliedPromo.code} · {appliedPromo.name}
+                    </span>
+                  </div>
+                  <button onClick={removePromo} className="text-slate-400 hover:text-red-500" aria-label="Hapus promo">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    name="promo-code"
+                    placeholder="Kode promo"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && applyPromo()}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="secondary" onClick={applyPromo} loading={promoMutation.isPending}>
+                    Terapkan
+                  </Button>
+                </div>
+              )}
+              {promoError && <p className="text-xs text-red-600" role="alert">{promoError}</p>}
+
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="text-slate-500">Diskon Transaksi</span>
+                <input
+                  name="sale-discount"
+                  type="number"
+                  min={0}
+                  value={saleDiscount || ''}
+                  onChange={(e) => setSaleDiscount(Math.max(0, parseInt(e.target.value) || 0))}
+                  placeholder="0"
+                  className="input w-32 py-1 text-right font-mono"
+                  aria-label="Diskon transaksi"
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Subtotal</span>
@@ -354,6 +473,18 @@ export function CashierPosPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Diskon Item</span>
                   <span className="font-mono font-medium text-red-600">-{formatCurrency(discountTotal)}</span>
+                </div>
+              )}
+              {promoDiscount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Diskon Promo</span>
+                  <span className="font-mono font-medium text-red-600">-{formatCurrency(promoDiscount)}</span>
+                </div>
+              )}
+              {saleDiscount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Diskon Transaksi</span>
+                  <span className="font-mono font-medium text-red-600">-{formatCurrency(saleDiscount)}</span>
                 </div>
               )}
               {taxTotal > 0 && (
@@ -486,12 +617,20 @@ export function CashierPosPage() {
               <Button variant="secondary" className="flex-1 rounded-xl" onClick={handlePrint}>
                 <Printer className="h-4 w-4" /> Cetak Struk
               </Button>
+              <Button variant="secondary" className="flex-1 rounded-xl" onClick={handleThermalPrint}>
+                <Printer className="h-4 w-4" /> Termal
+              </Button>
               <Button className="flex-1 rounded-xl" onClick={() => { setCompletedSale(null); searchRef.current?.focus() }}>
                 Transaksi Baru
               </Button>
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Barcode scanner */}
+      <Modal open={showScanner} onClose={() => setShowScanner(false)} title="Pindai Barcode" className="max-w-md">
+        <BarcodeScanner onDetect={handleBarcodeDetect} onClose={() => setShowScanner(false)} />
       </Modal>
     </>
   )

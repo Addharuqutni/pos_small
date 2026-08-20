@@ -125,7 +125,7 @@ export async function productRoutes(app: FastifyInstance) {
       .where(eq(products.id, id))
       .limit(1)
 
-    if (!product) throw new NotFound('Product not found')
+    if (!product) throw new NotFound('Produk tidak ditemukan')
     return product!
   })
 
@@ -157,7 +157,7 @@ export async function productRoutes(app: FastifyInstance) {
     const data = validate(updateSchema, request.body)
 
     const [before] = await db.select().from(products).where(eq(products.id, id)).limit(1)
-    if (!before) throw new NotFound('Product not found')
+    if (!before) throw new NotFound('Produk tidak ditemukan')
 
     const updates: Record<string, unknown> = { ...data, updatedAt: new Date() }
     if ('sku' in data) updates.sku = data.sku || null

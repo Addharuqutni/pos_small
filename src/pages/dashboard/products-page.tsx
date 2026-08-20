@@ -265,7 +265,7 @@ export function ProductsPage() {
       </div>
 
       {/* Table */}
-      <div className="card overflow-x-auto p-0">
+      <div className="table-shell">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left">
@@ -314,7 +314,7 @@ export function ProductsPage() {
                     <button
                       onClick={() => openEdit(product)}
                       className="icon-button"
-                      aria-label={`Edit ${product.name}`}
+                      aria-label={`Ubah ${product.name}`}
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
@@ -344,7 +344,7 @@ export function ProductsPage() {
       <Modal
         open={showForm}
         onClose={closeForm}
-        title={editing ? 'Edit Produk' : 'Tambah Produk'}
+        title={editing ? 'Ubah Produk' : 'Tambah Produk'}
         className="max-w-2xl"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -370,7 +370,7 @@ export function ProductsPage() {
               <label htmlFor="product-image" className="label">Gambar Produk</label>
               <div className="flex items-center gap-3">
                 {watchedImageData ? (
-                  <img src={watchedImageData} alt="Preview produk" className="h-14 w-14 rounded-lg object-cover" />
+                  <img src={watchedImageData} alt="Pratinjau produk" className="h-14 w-14 rounded-lg object-cover" />
                 ) : (
                   <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
                     Kosong

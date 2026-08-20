@@ -8,7 +8,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { useAuth } from '@/contexts/auth-context'
 import { Button, Input, Select, Modal, PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { Plus, Edit2, Power, KeyRound } from 'lucide-react'
-import type { User } from '@/types'
+import { roleLabels, type User } from '@/types'
 
 const userSchema = z.object({
   name: z.string().min(1, 'Nama wajib diisi'),
@@ -76,7 +76,7 @@ export function UsersPage() {
   }
 
   const resetPassword = (u: User) => {
-    const password = window.prompt(`Password baru untuk ${u.name}`)
+    const password = window.prompt(`Kata sandi baru untuk ${u.name}`)
     if (!password) return
     resetPwMutation.mutate({ id: u.id, password })
   }
@@ -117,17 +117,17 @@ export function UsersPage() {
       )}
       {resetPwMutation.isSuccess && (
         <p className="mb-4 text-sm text-green-600" role="status">
-          Password berhasil direset
+          Kata sandi berhasil direset
         </p>
       )}
 
-      <div className="card overflow-x-auto p-0">
+      <div className="table-shell">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left">
               <th className="px-4 py-3 font-medium text-slate-600">Nama</th>
               <th className="px-4 py-3 font-medium text-slate-600">Email</th>
-              <th className="px-4 py-3 font-medium text-slate-600">Role</th>
+              <th className="px-4 py-3 font-medium text-slate-600">Peran</th>
               <th className="px-4 py-3 font-medium text-slate-600">Status</th>
               <th className="px-4 py-3 font-medium text-slate-600">Aksi</th>
             </tr>
@@ -137,7 +137,7 @@ export function UsersPage() {
               <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-3 font-medium text-slate-900">{u.name}</td>
                 <td className="px-4 py-3 text-slate-500">{u.email}</td>
-                <td className="px-4 py-3 capitalize text-slate-600">{u.role}</td>
+                <td className="px-4 py-3 text-slate-600">{roleLabels[u.role]}</td>
                 <td className="px-4 py-3">
                   <StatusBadge tone={u.isActive ? 'green' : 'slate'}>
                     {u.isActive ? 'Aktif' : 'Nonaktif'}
@@ -145,10 +145,10 @@ export function UsersPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1">
-                    <button onClick={() => openEdit(u)} className="icon-button" aria-label={`Edit ${u.name}`}>
+                    <button onClick={() => openEdit(u)} className="icon-button" aria-label={`Ubah ${u.name}`}>
                       <Edit2 className="h-4 w-4" />
                     </button>
-                    <button onClick={() => resetPassword(u)} className="icon-button" aria-label={`Reset password ${u.name}`}>
+                    <button onClick={() => resetPassword(u)} className="icon-button" aria-label={`Reset kata sandi ${u.name}`}>
                       <KeyRound className="h-4 w-4" />
                     </button>
                     {u.id !== currentUser?.id && (
@@ -164,13 +164,13 @@ export function UsersPage() {
         </table>
       </div>
 
-      <Modal open={showForm} onClose={closeForm} title={editing ? 'Edit Pengguna' : 'Tambah Pengguna'}>
+      <Modal open={showForm} onClose={closeForm} title={editing ? 'Ubah Pengguna' : 'Tambah Pengguna'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input label="Nama" error={errors.name?.message} {...register('name')} />
           <Input label="Email" type="email" error={errors.email?.message} {...register('email')} />
-          <Select label="Role" options={roleOptions} error={errors.role?.message} {...register('role')} />
+          <Select label="Peran" options={roleOptions} error={errors.role?.message} {...register('role')} />
           <Input
-            label={editing ? 'Password Baru (kosongkan jika tidak ubah)' : 'Password'}
+            label={editing ? 'Kata sandi baru (kosongkan jika tidak diubah)' : 'Kata sandi'}
             type="password"
             error={errors.password?.message}
             {...register('password')}
