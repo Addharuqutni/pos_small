@@ -1,56 +1,70 @@
 # POS-Web
 
-Point-of-Sale web app. React 19 + Vite frontend, Fastify + Drizzle + PostgreSQL backend.
+## Deskripsi
 
-## Stack
+POS-Web adalah aplikasi Point-of-Sale (kasir) berbasis web untuk mengelola penjualan toko ritel. Aplikasi menyediakan dua area utama: **kasir** untuk transaksi penjualan harian dan **dasbor** untuk pengelolaan produk, stok, laporan, pengguna, dan pengaturan toko.
 
-- **Frontend:** React 19, Vite 6, React Router 7, TanStack Query 5, TailwindCSS 3, react-hook-form + zod
-- **Backend:** Fastify 5, Drizzle ORM, PostgreSQL, bcrypt sessions (cookie), zod validation
-- **Tooling:** TypeScript 5, drizzle-kit
+Antarmuka berbahasa Indonesia, sedangkan kode, nama file, dan route API menggunakan bahasa Inggris.
 
-## Structure
+### Peran pengguna
 
-```
-POS/
-├── src/                  # React frontend
-│   ├── pages/
-│   │   ├── auth/         # login
-│   │   ├── cashier/      # POS, shift open/close, sale detail (role: cashier)
-│   │   └── dashboard/    # products, categories, stock, sales, reports, users, settings, shifts (role: owner/admin)
-│   ├── components/       # ui, layout, receipt
-│   ├── contexts/         # auth, cart
-│   └── lib/              # api client, query keys, utils
-├── api/                  # Fastify backend
-│   └── src/
-│       ├── server.ts     # app bootstrap, route registration
-│       ├── modules/      # auth, categories, products, users, settings, shifts, sales, stock, reports, audit
-│       ├── db/           # schema.ts, client.ts
-│       ├── lib/          # auth, validation, errors, audit, sales-rules
-│       └── seed.ts
-└── docs/                 # design specs + plans
-```
+| Peran | Akses |
+|-------|-------|
+| `cashier` | Layar POS, buka/tutup shift, detail transaksi sendiri |
+| `admin` | Dasbor: produk, kategori, stok, pembelian, supplier, promo, transaksi, laporan |
+| `owner` | Semua akses admin + pengguna, pengaturan, laporan shift, audit, backup |
 
-## Roles
+## Screenshot
 
-- **cashier** — POS screen, shift open/close, own sale detail
-- **owner / admin** — dashboard: products, categories, stock, sales, reports, users, settings, shift reports
+<!-- Tambahkan tangkapan layar di sini, contoh:
+![Dasbor POS](docs/screenshot.png)
+-->
 
-## Getting Started
+## Fitur
 
-### Prerequisites
+### Kasir
 
-- Node 20+, npm
-- PostgreSQL (local or Supabase)
+- Pencarian produk berdasarkan nama, SKU, atau barcode
+- Pemindai barcode kamera
+- Keranjang belanja dengan penyesuaian jumlah dan diskon per item
+- Diskon transaksi manual dan kode promo
+- Metode pembayaran: Tunai, QRIS, Transfer
+- Buka/tutup shift dengan rekonsiliasi kas
+- Struk termal dan cetak ulang
+- Keranjang tersimpan di `localStorage` (banner offline saat kehilangan koneksi)
+
+### Dasbor
+
+- Manajemen produk, kategori, supplier, dan pembelian (stok masuk)
+- Manajemen promo (persen/nominal, periode, batas pemakaian)
+- Riwayat transaksi dengan pencarian, detail, pembatalan (void), dan pengembalian (refund)
+- Laporan: penjualan, produk, kategori, dan stok rendah — ekspor CSV dan PDF
+- Laporan shift dan audit
+- Manajemen pengguna dan pengaturan toko
+- Cadangan data (backup) JSON penuh
+
+### Teknis
+
+- Autentikasi berbasis sesi (cookie) dengan role-based access control
+- Offline banner + persistensi keranjang
+- PWA (manifest + icon)
+
+## Bagaimana cara instalasi
+
+### Prasyarat
+
+- Node 20+ dan npm
+- PostgreSQL (lokal atau Supabase)
 
 ### Backend (`api/`)
 
 ```bash
 cd api
 npm install
-cp .env.example .env      # fill DATABASE_URL, SESSION_SECRET (>=32 chars in prod), APP_URL, owner creds
-npm run db:generate       # generate migrations
-npm run db:migrate        # apply migrations
-npm run db:seed           # seed owner + base data
+cp .env.example .env      # isi DATABASE_URL, SESSION_SECRET, APP_URL, kredensial owner
+npm run db:generate       # generate migrasi
+npm run db:migrate        # terapkan migrasi
+npm run db:seed           # seed owner + cashier (dataset demo butuh SEED_DEMO=true)
 npm run dev               # http://localhost:4000
 ```
 
@@ -61,70 +75,54 @@ npm install
 npm run dev               # http://localhost:3000 (Vite)
 ```
 
-## Commands
+### Variabel environment (`api/.env`)
 
-### Root (frontend)
+Lihat [`api/.env.example`](api/.env.example).
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start the Vite dev server |
-| `npm run build` | Run the frontend TypeScript build check, then create a production Vite build |
-| `npm run preview` | Preview the production build |
-| `npm run check` | Frontend TypeScript build check (`tsc -b`) |
-| `npm test` | Run the backend sales-rules self-check through `api/` |
+| Variabel | Wajib | Deskripsi | Contoh |
+|----------|-------|-----------|--------|
+| `DATABASE_URL` | Ya | String koneksi PostgreSQL | `postgresql://postgres:password@localhost:54322/postgres` |
+| `SESSION_SECRET` | Ya (prod) | Secret penandatangan cookie `sid`; minimal 32 karakter di produksi | string acak 32+ karakter |
+| `APP_URL` | Ya (prod) | Origin CORS yang diizinkan (URL frontend) | `http://localhost:3000` |
+| `NODE_ENV` | Tidak | `development` atau `production` | `development` |
+| `OWNER_EMAIL` | Seed | Email akun owner awal | `owner@pos.local` |
+| `OWNER_PASSWORD` | Seed | Kata sandi owner awal | `change-me` |
+| `OWNER_NAME` | Seed | Nama tampilan owner awal | `Owner` |
+| `CASHIER_EMAIL` | Tidak | Email kasir untuk QA POS | `cashier@pos.local` |
+| `CASHIER_PASSWORD` | Tidak | Kata sandi kasir | `change-me` |
+| `CASHIER_NAME` | Tidak | Nama tampilan kasir | `Cashier` |
+| `SEED_DEMO` | Tidak | `true` untuk seed dataset demo + akun demo. Nonaktifkan di produksi | `false` |
+| `PORT` | Tidak | Port backend (default `4000`) | `4000` |
 
-### `api/` (backend)
+### Perintah (script)
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start the Fastify server with `tsx` watch mode and `.env` |
-| `npm run build` | Compile the backend to `dist/` |
-| `npm run start` | Run the compiled `dist/server.js` with `.env` |
-| `npm run db:generate` | Generate Drizzle migrations |
-| `npm run db:migrate` | Apply migrations |
-| `npm run db:seed` | Seed owner (+ optional cashier if `CASHIER_*` set) and default settings |
-| `npm run check` | Backend TypeScript check (`tsc --noEmit`) |
-| `npm test` | Run `src/lib/sales-rules.self-check.ts` (a standalone self-check, not a test runner) |
+**Root (frontend)**
 
-## Environment (`api/.env`)
+| Perintah | Deskripsi |
+|----------|-----------|
+| `npm run dev` | Jalankan Vite dev server |
+| `npm run build` | TypeScript check lalu build produksi Vite |
+| `npm run preview` | Pratinjau build produksi |
+| `npm run check` | TypeScript check frontend (`tsc -b`) |
+| `npm test` | Jalankan unit test frontend dan backend (`node:test`) |
 
-See [`api/.env.example`](api/.env.example).
+**`api/` (backend)**
 
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string | `postgresql://postgres:password@localhost:54322/postgres` |
-| `SESSION_SECRET` | Yes (prod) | HMAC signing secret for the `sid` cookie; must be at least 32 characters in production | random 32+ character string |
-| `APP_URL` | Yes (prod) | Allowed CORS origin (frontend URL) | `http://localhost:3000` |
-| `NODE_ENV` | No | `development` or `production` | `development` |
-| `OWNER_EMAIL` | Seed only | Initial owner account email | `owner@pos.local` |
-| `OWNER_PASSWORD` | Seed only | Initial owner password | `change-me` |
-| `OWNER_NAME` | Seed only | Initial owner display name | `Owner` |
-| `CASHIER_EMAIL` | Seed only (optional) | Cashier account email for POS QA | `cashier@pos.local` |
-| `CASHIER_PASSWORD` | Seed only (optional) | Cashier password | `change-me` |
-| `CASHIER_NAME` | Seed only (optional) | Cashier display name | `Cashier` |
-| `PORT` | No | Backend port (defaults to `4000`) | `4000` |
+| Perintah | Deskripsi |
+|----------|-----------|
+| `npm run dev` | Jalankan Fastify dengan `tsx` watch mode dan `.env` |
+| `npm run build` | Kompilasi backend ke `dist/` |
+| `npm run start` | Jalankan `dist/server.js` (`.env` opsional, env dari platform) |
+| `npm run db:generate` | Generate migrasi Drizzle |
+| `npm run db:migrate` | Terapkan migrasi |
+| `npm run db:seed` | Seed owner (+ kasir opsional) dan pengaturan default |
+| `npm run check` | TypeScript check backend (`tsc --noEmit`) |
+| `npm test` | Unit test backend (`tsx --test src/**/*.test.ts`) |
 
-## API
+## Tech Stack
 
-All routes are prefixed with `/api`. Authentication is required unless noted. The health check is public: `GET /api/health` → `{ status: "ok" }`.
-
-| Module | Endpoints | Access |
-|--------|-----------|--------|
-| Auth | `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | Login is public; logout and current-user lookup require authentication |
-| Categories | `GET /api/categories`, `POST /api/categories`, `PATCH /api/categories/:id` | Read: authenticated; write: owner/admin |
-| Products | `GET /api/products`, `GET /api/products/:id`, `POST /api/products`, `PATCH /api/products/:id` | Read: authenticated; write: owner/admin |
-| Users | `GET /api/users`, `POST /api/users`, `PATCH /api/users/:id`, `POST /api/users/:id/reset-password` | Authenticated; management actions are role-restricted |
-| Settings | `GET /api/settings`, `PATCH /api/settings` | Read: authenticated; write: owner/admin |
-| Shifts | `POST /api/shifts/open`, `GET /api/shifts/active`, `POST /api/shifts/close`, `GET /api/shifts`, `GET /api/shifts/report` | Shift operations: authenticated; report: owner/admin |
-| Sales | `POST /api/sales`, `GET /api/sales`, `GET /api/sales/:id`, `POST /api/sales/:id/void`, `POST /api/sales/:id/refund` | Sale operations: authenticated; void/refund: owner/admin |
-| Stock | `GET /api/stock/movements`, `POST /api/stock/adjust` | Read: authenticated; adjustment: owner/admin |
-| Reports | `GET /api/reports/sales`, `GET /api/reports/products`, `GET /api/reports/low-stock` | Authenticated; report access is role-restricted where applicable |
-| Audit | `GET /api/audit` | Owner/admin |
-
-## Notes
-
-- The `sid` cookie contains a session identifier; sessions are persisted in the database and cached briefly in memory. `SESSION_SECRET` signs the cookie via `@fastify/cookie`.
-- The API enforces a global limit of 100 requests per minute. Login has a tighter in-memory limit of five attempts per minute per IP/email pair.
-- CORS is restricted to `APP_URL`; production does not fall back to localhost.
-- In production, startup fails when `SESSION_SECRET` is missing or shorter than 32 characters, or when `APP_URL` is missing.
-- When `VERCEL` is set, the standalone `app.listen` call is skipped so the app can be initialized by a serverless entrypoint. The repository currently documents that integration in `api/src/server.ts`; configure the platform entrypoint separately.
+| Lapisan | Teknologi |
+|---------|-----------|
+| Frontend | React 19, Vite 6, React Router 7, TanStack Query 5, TailwindCSS 3, react-hook-form, zod, lucide-react |
+| Backend | Fastify 5, Drizzle ORM, PostgreSQL (postgres.js), bcrypt, zod, @fastify/cookie, @fastify/cors, @fastify/rate-limit |
+| Tooling | TypeScript 5, drizzle-kit, tsx, node:test |

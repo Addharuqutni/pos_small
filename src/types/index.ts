@@ -88,6 +88,10 @@ export interface Sale {
   grandTotal: number
   paidTotal: number
   changeTotal: number
+  discount: number
+  promoId: string | null
+  promoCode: string | null
+  promoDiscount: number
   status: SaleStatus
   createdAt: string
   updatedAt: string
@@ -213,17 +217,98 @@ export interface ProductReportRow {
   totalRevenue: number
 }
 
+// --- Promo ---
+
+export type PromoType = 'percent' | 'amount'
+
+export interface Promo {
+  id: string
+  code: string
+  name: string
+  type: PromoType
+  value: number
+  minPurchase: number
+  maxDiscount: number | null
+  startsAt: string
+  endsAt: string | null
+  usageLimit: number | null
+  usageCount: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ValidatedPromo {
+  id: string
+  code: string
+  name: string
+  type: PromoType
+  value: number
+  maxDiscount: number | null
+  discount: number
+}
+
+// --- Supplier ---
+
+export interface Supplier {
+  id: string
+  name: string
+  phone: string | null
+  address: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// --- Purchase (stock-in) ---
+
+export interface PurchaseItem {
+  id: string
+  purchaseId: string
+  productId: string
+  productNameSnapshot: string
+  qty: number
+  costPrice: number
+  subtotal: number
+}
+
+export interface Purchase {
+  id: string
+  invoiceNo: string
+  supplierId: string | null
+  supplierName?: string | null
+  totalCost: number
+  notes: string | null
+  createdBy: string
+  createdByName?: string | null
+  createdAt: string
+  items?: PurchaseItem[]
+}
+
+export interface CategoryReportRow {
+  categoryId: string | null
+  categoryName: string
+  totalQty: number
+  totalRevenue: number
+}
+
 // --- Shared UI label maps (used by multiple dashboard pages) ---
 
 export const saleStatusLabels: Record<SaleStatus, string> = {
   paid: 'Lunas',
   void: 'Batal',
-  refunded: 'Refund Penuh',
-  partial_refunded: 'Refund Sebagian',
+  refunded: 'Pengembalian penuh',
+  partial_refunded: 'Pengembalian sebagian',
 }
 
 export const paymentMethodLabels: Record<PaymentMethod, string> = {
   cash: 'Tunai',
   qris: 'QRIS',
   transfer: 'Transfer',
+}
+
+export const roleLabels: Record<Role, string> = {
+  owner: 'Pemilik',
+  admin: 'Admin',
+  cashier: 'Kasir',
 }

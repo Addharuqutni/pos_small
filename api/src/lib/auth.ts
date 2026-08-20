@@ -90,7 +90,7 @@ export async function requireAuth(request: FastifyRequest, _reply: FastifyReply)
     .limit(1)
 
   if (!row) throw new Unauthorized()
-  if (!row.isActive) throw new Forbidden('Account deactivated')
+  if (!row.isActive) throw new Forbidden('Akun dinonaktifkan')
 
   const user: AuthUser = {
     id: row.userId,
@@ -109,7 +109,7 @@ export function requireRole(...roles: AuthUser['role'][]) {
     // requireAuth must run before this
     if (!request.user) throw new Unauthorized()
     if (!roles.includes(request.user.role)) {
-      throw new Forbidden('Insufficient permissions')
+      throw new Forbidden('Izin tidak cukup')
     }
   }
 }

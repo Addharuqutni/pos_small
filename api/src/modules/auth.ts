@@ -63,10 +63,10 @@ export async function authRoutes(app: FastifyInstance) {
       .limit(1)
 
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      throw new Unauthorized('Invalid email or password')
+      throw new Unauthorized('Email atau kata sandi salah')
     }
     if (!user.isActive) {
-      throw new Unauthorized('Account deactivated')
+      throw new Unauthorized('Akun dinonaktifkan')
     }
 
     // Successful login — clear throttle for this ip+email.
@@ -113,7 +113,7 @@ export async function authRoutes(app: FastifyInstance) {
       ipAddress: request.ip,
     })
 
-    return { message: 'Logged out' }
+    return { message: 'Berhasil keluar' }
   })
 
   // GET /api/auth/me

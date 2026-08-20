@@ -11,6 +11,7 @@ export const saleStatusEnum = pgEnum('sale_status', ['paid', 'void', 'refunded',
 export const paymentMethodEnum = pgEnum('payment_method', ['cash', 'qris', 'transfer'])
 export const shiftStatusEnum = pgEnum('shift_status', ['open', 'closed'])
 export const stockMovementTypeEnum = pgEnum('stock_movement_type', ['sale', 'adjustment', 'return', 'restock', 'refund'])
+export const promoTypeEnum = pgEnum('promo_type', ['percent', 'amount'])
 
 // --- Users ---
 
@@ -119,6 +120,10 @@ export const sales = pgTable('sales', {
   paidTotal: integer('paid_total').notNull().default(0),
   changeTotal: integer('change_total').notNull().default(0),
   status: saleStatusEnum('status').notNull().default('paid'),
+  discount: integer('discount').notNull().default(0),
+  promoId: uuid('promo_id').references(() => promos.id),
+  promoCode: varchar('promo_code', { length: 50 }),
+  promoDiscount: integer('promo_discount').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
@@ -223,6 +228,74 @@ export const settings = pgTable('settings', {
   currency: varchar('currency', { length: 10 }).notNull().default('IDR'),
   allowNegativeStockDefault: boolean('allow_negative_stock_default').notNull().default(false),
 })
+
+// --- Promos ---
+
+export const promos = pgTable('promos', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code: varchar('code', { length: 50 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  type: promoTypeEnum('type').notNull(),
+  value: integer('value').notNull(), // percent (0-100) or flat amount in minor unit
+  minPurchase: integer('min_purchase').notNull().default(0),
+  maxDiscount: integer('max_discount'), // cap for percent promos
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull().defaultNow(),
+  endsAt: timestamp('ends_at', { withTimezone: true }),
+  usageLimit: integer('usage_limit'), // null = unlimited
+  usageCount: integer('usage_count').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('promos_code_idx').on(t.code),
+  index('promos_is_active_idx').on(t.isActive),
+  check('promos_value_check', sql`value >= 0`),
+])
+
+// --- Suppliers ---
+
+export const suppliers = pgTable('suppliers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  phone: varchar('phone', { length: 50 }),
+  address: text('address'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index('suppliers_is_active_idx').on(t.isActive),
+])
+
+// --- Purchases (stock-in) ---
+
+export const purchases = pgTable('purchases', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  invoiceNo: varchar('invoice_no', { length: 50 }).notNull(),
+  supplierId: uuid('supplier_id').references(() => suppliers.id),
+  totalCost: integer('total_cost').notNull().default(0),
+  notes: text('notes'),
+  createdBy: uuid('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('purchases_invoice_no_idx').on(t.invoiceNo),
+  index('purchases_supplier_id_idx').on(t.supplierId),
+  index('purchases_created_at_idx').on(t.createdAt),
+])
+
+export const purchaseItems = pgTable('purchase_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  purchaseId: uuid('purchase_id').notNull().references(() => purchases.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id').notNull().references(() => products.id),
+  productNameSnapshot: varchar('product_name_snapshot', { length: 255 }).notNull(),
+  qty: integer('qty').notNull(),
+  costPrice: integer('cost_price').notNull(),
+  subtotal: integer('subtotal').notNull(),
+}, (t) => [
+  index('purchase_items_purchase_id_idx').on(t.purchaseId),
+  check('purchase_items_qty_check', sql`qty > 0`),
+  check('purchase_items_cost_price_check', sql`cost_price >= 0`),
+])
 
 // --- Audit Logs ---
 

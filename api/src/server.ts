@@ -13,6 +13,10 @@ import { saleRoutes } from './modules/sales.js'
 import { stockRoutes } from './modules/stock.js'
 import { reportRoutes } from './modules/reports.js'
 import { auditRoutes } from './modules/audit.js'
+import { promoRoutes } from './modules/promos.js'
+import { supplierRoutes } from './modules/suppliers.js'
+import { purchaseRoutes } from './modules/purchases.js'
+import { backupRoutes } from './modules/backup.js'
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -57,6 +61,10 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(stockRoutes, { prefix: '/api/stock' })
   await app.register(reportRoutes, { prefix: '/api/reports' })
   await app.register(auditRoutes, { prefix: '/api/audit' })
+  await app.register(promoRoutes, { prefix: '/api/promos' })
+  await app.register(supplierRoutes, { prefix: '/api/suppliers' })
+  await app.register(purchaseRoutes, { prefix: '/api/purchases' })
+  await app.register(backupRoutes, { prefix: '/api/backup' })
 
   // Health check
   app.get('/api/health', async () => ({ status: 'ok' }))

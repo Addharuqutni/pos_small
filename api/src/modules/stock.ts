@@ -77,7 +77,7 @@ export async function stockRoutes(app: FastifyInstance) {
         .where(eq(products.id, data.productId))
         .for('update')
 
-      if (!product) throw new NotFound('Product not found')
+      if (!product) throw new NotFound('Produk tidak ditemukan')
 
       const newStock = product.stock + data.qtyChange
       // Honor the product's negative-stock policy — a manual adjustment must

@@ -35,7 +35,7 @@ export async function shiftRoutes(app: FastifyInstance) {
         .for('update')
         .limit(1)
 
-      if (existing) throw new Conflict('You already have an open shift')
+      if (existing) throw new Conflict('Anda masih memiliki shift yang terbuka')
 
       const [created] = await tx
         .insert(shifts)
@@ -66,7 +66,7 @@ export async function shiftRoutes(app: FastifyInstance) {
       .where(and(eq(shifts.cashierId, request.user.id), eq(shifts.status, 'open')))
       .limit(1)
 
-    if (!shift) throw new NotFound('No active shift')
+    if (!shift) throw new NotFound('Tidak ada shift aktif')
     return shift!
   })
 
@@ -84,7 +84,7 @@ export async function shiftRoutes(app: FastifyInstance) {
         .for('update')
 
       const [shift, ...staleOpenShifts] = openShifts
-      if (!shift) throw new NotFound('No active shift to close')
+      if (!shift) throw new NotFound('Tidak ada shift aktif untuk ditutup')
 
       if (staleOpenShifts.length > 0) {
         await tx

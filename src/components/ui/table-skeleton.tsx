@@ -10,8 +10,8 @@ export function TableSkeleton({ rows = 6, cols = [22, 16, 12, 10, 14] }: TableSk
   return (
     <div role="status">
       <span className="sr-only">Memuat data...</span>
-      <div className="card overflow-hidden p-0" aria-hidden="true">
-        <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="table-shell overflow-hidden" aria-hidden="true">
+        <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3">
           <div className="h-3.5 w-32 animate-pulse rounded bg-slate-200 motion-reduce:animate-none" />
         </div>
         {Array.from({ length: rows }, (_, row) => (

@@ -9,7 +9,7 @@ import type { Role } from '@/types'
 
 const loginSchema = z.object({
   email: z.string().email('Email tidak valid'),
-  password: z.string().min(1, 'Password wajib diisi'),
+  password: z.string().min(1, 'Kata sandi wajib diisi'),
 })
 
 type LoginForm = z.infer<typeof loginSchema>
@@ -48,20 +48,23 @@ export function LoginPage() {
       // Role-based redirect after login
       navigate(loginTarget(loggedInUser.role, from), { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login gagal')
+      setError(err instanceof Error ? err.message : 'Gagal masuk')
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-pos-bg px-4 py-10">
+      <div className="pointer-events-none absolute -right-32 -top-32 h-80 w-80 rounded-full bg-primary-100/70 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -left-32 h-96 w-96 rounded-full bg-slate-200/70 blur-3xl" />
+      <div className="relative w-full max-w-sm">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-600 text-xl font-bold text-white shadow-lg shadow-primary-600/30">
-            P
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-lg font-extrabold text-white shadow-panel">
+            PC
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">POS App</h1>
-          <p className="mt-1 text-sm text-slate-500">Masuk ke akun Anda</p>
+          <p className="section-kicker mb-2">Retail operations</p>
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-slate-950">Konsol POS</h1>
+          <p className="mt-2 text-sm text-slate-500">Kelola toko dengan lebih tenang.</p>
         </div>
 
         {/* Form */}
@@ -83,7 +86,7 @@ export function LoginPage() {
           />
 
           <Input
-            label="Password"
+            label="Kata sandi"
             type="password"
             placeholder="••••••••"
             autoComplete="current-password"

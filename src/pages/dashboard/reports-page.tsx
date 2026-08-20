@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { formatCurrency, formatDateOnly, localDateInputValue, localDayIso } from '@/lib/utils'
 import { Button, Input, PageHeader, TableSkeleton, ErrorState } from '@/components/ui'
-import { Download } from 'lucide-react'
+import { Download, FileText } from 'lucide-react'
 
 interface SalesReportRow {
   date: string
@@ -27,16 +27,20 @@ interface SalesReportResponse {
 }
 
 export function ReportsPage() {
-  const today = localDateInputValue()
-  const [startDate, setStartDate] = useState(today)
-  const [endDate, setEndDate] = useState(today)
-  const startQuery = localDayIso(startDate)
-  const endQuery = localDayIso(endDate, true)
+  const today = new Date()
+  const monthAgo = new Date(today)
+  monthAgo.setMonth(monthAgo.getMonth() - 1)
+  const [startDate, setStartDate] = useState(localDateInputValue(monthAgo))
+  const [endDate, setEndDate] = useState(localDateInputValue(today))
+  const invalidRange = !startDate || !endDate || startDate > endDate
+  const startQuery = startDate ? localDayIso(startDate) : ''
+  const endQuery = endDate ? localDayIso(endDate, true) : ''
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.reports.sales({ startDate, endDate }),
     queryFn: () =>
       api.get<SalesReportResponse>(`/reports/sales?start=${startQuery}&end=${endQuery}`),
+    enabled: !invalidRange,
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
@@ -47,12 +51,22 @@ export function ReportsPage() {
     window.open(`/api/reports/sales?start=${startQuery}&end=${endQuery}&format=csv`, '_blank')
   }
 
+  const handleExportPdf = () => {
+    // Printable HTML report — user saves as PDF via browser print dialog.
+    window.open(`/api/reports/sales?start=${startQuery}&end=${endQuery}&format=html`, '_blank')
+  }
+
   return (
     <div>
       <PageHeader title="Laporan Penjualan" subtitle="Rangkuman penjualan per periode">
-        <Button variant="secondary" onClick={handleExport}>
-          <Download className="h-4 w-4" /> Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={handleExport} disabled={invalidRange}>
+            <Download className="h-4 w-4" /> Ekspor CSV
+          </Button>
+          <Button variant="secondary" onClick={handleExportPdf} disabled={invalidRange}>
+            <FileText className="h-4 w-4" /> Ekspor PDF
+          </Button>
+        </div>
       </PageHeader>
 
       {/* Filters */}
@@ -60,20 +74,29 @@ export function ReportsPage() {
         <Input
           label="Dari"
           type="date"
+          required
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
+          max={endDate || undefined}
           className="max-w-[180px]"
         />
         <Input
           label="Sampai"
           type="date"
+          required
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
+          min={startDate || undefined}
           className="max-w-[180px]"
         />
+        {invalidRange && (
+          <p className="self-end pb-2 text-sm font-bold text-red-600" role="alert">
+            {!startDate || !endDate ? 'Pilih tanggal awal dan akhir.' : 'Tanggal awal tidak boleh setelah tanggal akhir.'}
+          </p>
+        )}
       </div>
 
-      {isLoading ? (
+      {invalidRange ? null : isLoading ? (
         <TableSkeleton rows={7} />
       ) : isError ? (
         <ErrorState message="Gagal memuat laporan." onRetry={() => refetch()} />
@@ -100,7 +123,7 @@ export function ReportsPage() {
             </div>
           )}
 
-          <div className="card overflow-x-auto p-0">
+          <div className="table-shell">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left">

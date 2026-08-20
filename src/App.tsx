@@ -17,6 +17,9 @@ import { ReportsPage } from '@/pages/dashboard/reports-page'
 import { UsersPage } from '@/pages/dashboard/users-page'
 import { SettingsPage } from '@/pages/dashboard/settings-page'
 import { ShiftReportPage } from '@/pages/dashboard/shift-report-page'
+import { PromosPage } from '@/pages/dashboard/promos-page'
+import { SuppliersPage } from '@/pages/dashboard/suppliers-page'
+import { PurchasesPage } from '@/pages/dashboard/purchases-page'
 import { CashierPosPage } from '@/pages/cashier/cashier-pos-page'
 import { ShiftOpenPage } from '@/pages/cashier/shift-open-page'
 import { ShiftClosePage } from '@/pages/cashier/shift-close-page'
@@ -54,6 +57,9 @@ export default function App() {
                 <Route path="/dashboard/users" element={<UsersPage />} />
                 <Route path="/dashboard/settings" element={<SettingsPage />} />
                 <Route path="/dashboard/shifts" element={<ShiftReportPage />} />
+                <Route path="/dashboard/promos" element={<PromosPage />} />
+                <Route path="/dashboard/suppliers" element={<SuppliersPage />} />
+                <Route path="/dashboard/purchases" element={<PurchasesPage />} />
               </Route>
             </Route>
 

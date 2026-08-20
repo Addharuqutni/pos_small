@@ -86,7 +86,7 @@ export function CategoriesPage() {
         </p>
       )}
 
-      <div className="card overflow-x-auto p-0">
+      <div className="table-shell">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left">
@@ -109,7 +109,7 @@ export function CategoriesPage() {
                     <button
                       onClick={() => openEdit(cat)}
                       className="icon-button"
-                      aria-label={`Edit ${cat.name}`}
+                      aria-label={`Ubah ${cat.name}`}
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
@@ -135,7 +135,7 @@ export function CategoriesPage() {
         </table>
       </div>
 
-      <Modal open={showForm} onClose={closeForm} title={editing ? 'Edit Kategori' : 'Tambah Kategori'}>
+      <Modal open={showForm} onClose={closeForm} title={editing ? 'Ubah Kategori' : 'Tambah Kategori'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input label="Nama Kategori" error={errors.name?.message} autoFocus {...register('name')} />
           {saveMutation.isError && (

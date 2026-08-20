@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { useAuth } from '@/contexts/auth-context'
 import { Button, Input, PageHeader, PageSpinner } from '@/components/ui'
+import { Download } from 'lucide-react'
 import type { StoreSettings } from '@/types'
 
 const settingsSchema = z.object({
@@ -86,6 +87,18 @@ export function SettingsPage() {
           </p>
         )}
       </form>
+
+      <div className="card mt-6">
+        <h2 className="text-lg font-semibold text-slate-900">Cadangkan Data</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Unduh seluruh data toko (produk, transaksi, stok, pengguna) sebagai file JSON.
+        </p>
+        <div className="mt-4">
+          <Button type="button" variant="secondary" onClick={() => { window.location.href = '/api/backup' }}>
+            <Download className="h-4 w-4" /> Unduh Cadangan
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -66,7 +66,7 @@ export function SaleDetailDashboardPage() {
   })
 
   function handleVoid() {
-    if (!confirm('Yakin ingin void transaksi ini? Tindakan ini tidak dapat dibatalkan.')) return
+    if (!confirm('Yakin ingin membatalkan transaksi ini? Tindakan ini tidak dapat dibatalkan.')) return
     voidMutation.mutate()
   }
 
@@ -118,18 +118,18 @@ export function SaleDetailDashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Detail Transaksi" subtitle={`Invoice ${sale.invoiceNo}`}>
+      <PageHeader title="Detail Transaksi" subtitle={`Faktur ${sale.invoiceNo}`}>
         <Button variant="ghost" onClick={() => navigate('/dashboard/sales')}>
           ← Kembali
         </Button>
         {sale.status === 'paid' && (
           <>
             <Button variant="danger" onClick={handleVoid} disabled={voidMutation.isPending}>
-              {voidMutation.isPending ? 'Memproses…' : 'Void'}
+              {voidMutation.isPending ? 'Memproses…' : 'Batalkan'}
             </Button>
-            <Button variant="secondary" onClick={openRefundModal}>
-              Refund
-            </Button>
+          <Button variant="secondary" onClick={openRefundModal}>
+            Pengembalian
+          </Button>
           </>
         )}
       </PageHeader>
@@ -141,7 +141,7 @@ export function SaleDetailDashboardPage() {
           <div className="card">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-slate-500">Invoice</span>
+                <span className="text-slate-500">Faktur</span>
                 <p className="font-mono font-medium">{sale.invoiceNo}</p>
               </div>
               <div>
@@ -162,7 +162,7 @@ export function SaleDetailDashboardPage() {
           </div>
 
           {/* Items table */}
-          <div className="card overflow-x-auto p-0">
+        <div className="table-shell">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left">
@@ -229,7 +229,7 @@ export function SaleDetailDashboardPage() {
           {/* Existing refunds */}
           {sale.refunds && sale.refunds.length > 0 && (
             <div className="card">
-              <h3 className="mb-3 font-semibold text-slate-800">Riwayat Refund</h3>
+              <h3 className="mb-3 font-semibold text-slate-800">Riwayat Pengembalian</h3>
               <div className="space-y-4">
                 {sale.refunds.map((refund) => (
                   <div key={refund.id} className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
@@ -260,10 +260,10 @@ export function SaleDetailDashboardPage() {
       </div>
 
       {/* Refund Modal */}
-      <Modal open={showRefundModal} onClose={() => setShowRefundModal(false)} title="Refund Transaksi">
+      <Modal open={showRefundModal} onClose={() => setShowRefundModal(false)} title="Pengembalian Transaksi">
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Pilih item yang direfund:</label>
+            <label className="text-sm font-medium text-slate-700">Pilih item yang dikembalikan:</label>
             {refundItems.map((item, idx) => (
               <div key={item.saleItemId} className="flex items-center gap-3 rounded border p-2">
                 <input
@@ -277,7 +277,7 @@ export function SaleDetailDashboardPage() {
                     )
                   }}
                   className="h-4 w-4 rounded border-slate-300"
-                  aria-label={`Refund ${item.productName}`}
+                  aria-label={`Pengembalian ${item.productName}`}
                 />
                 <span className="flex-1 text-sm">{item.productName}</span>
                 <Input
@@ -294,21 +294,21 @@ export function SaleDetailDashboardPage() {
                   }}
                   disabled={!item.checked}
                   className="w-20 text-center"
-                  aria-label={`Qty refund ${item.productName}`}
+                  aria-label={`Jumlah pengembalian ${item.productName}`}
                 />
                 <span className="text-xs text-slate-400">/ {item.maxQty}</span>
               </div>
             ))}
           </div>
           <div>
-            <label htmlFor="refund-reason" className="mb-1 block text-sm font-medium text-slate-700">Alasan refund</label>
+            <label htmlFor="refund-reason" className="mb-1 block text-sm font-medium text-slate-700">Alasan pengembalian</label>
             <textarea
               id="refund-reason"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               rows={3}
               value={refundReason}
               onChange={(e) => setRefundReason(e.target.value)}
-              placeholder="Masukkan alasan refund..."
+              placeholder="Masukkan alasan pengembalian..."
             />
           </div>
           <div className="flex justify-end gap-2">
@@ -319,7 +319,7 @@ export function SaleDetailDashboardPage() {
               onClick={handleRefundSubmit}
               disabled={refundMutation.isPending || refundItems.every((i) => !i.checked)}
             >
-              {refundMutation.isPending ? 'Memproses…' : 'Proses Refund'}
+              {refundMutation.isPending ? 'Memproses…' : 'Proses Pengembalian'}
             </Button>
           </div>
         </div>

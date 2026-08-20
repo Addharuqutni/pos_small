@@ -6,7 +6,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { AlertTriangle, BarChart3, ShoppingCart, TrendingUp } from 'lucide-react'
 import { formatCurrency, formatDate, localDateInputValue, localDayIso } from '@/lib/utils'
 import { PageHeader, PageSpinner, StatusBadge, ErrorState } from '@/components/ui'
-import type { PaginatedResponse, Sale, SalesReportResponse, ProductReportRow } from '@/types'
+import type { PaginatedResponse, Sale, SalesReportResponse, ProductReportRow, CategoryReportRow } from '@/types'
 import { saleStatusLabels } from '@/types'
 
 interface LowStockProduct {
@@ -68,7 +68,7 @@ function RevenueChart({ rows, startDate, endDate }: { rows: RevenueChartRow[]; s
         <span id="revenue-chart-title">Grafik garis omzet harian</span>
         <span id="revenue-chart-description"> Periode {startDate} sampai {endDate}.</span>
       </figcaption>
-      <div className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50/70 p-2 sm:p-3">
+      <div className="table-shell bg-slate-50/70 p-2 sm:p-3">
         <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img" aria-hidden="true">
           <defs>
             <linearGradient id="revenue-area" x1="0" y1="0" x2="0" y2="1">
@@ -149,6 +149,29 @@ function InlineLoading({ children }: { children: string }) {
   return <p className="py-8 text-center text-sm text-slate-400">{children}</p>
 }
 
+function CategoryBars({ rows }: { rows: CategoryReportRow[] }) {
+  const max = Math.max(...rows.map((r) => r.totalRevenue), 1)
+  return (
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <div key={row.categoryName}>
+          <div className="mb-1 flex justify-between text-sm">
+            <span className="truncate font-medium text-slate-900">{row.categoryName}</span>
+            <span className="ml-3 shrink-0 font-mono text-slate-500">{formatCurrency(row.totalRevenue)}</span>
+          </div>
+          <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-primary-500"
+              style={{ width: `${Math.max(4, (row.totalRevenue / max) * 100)}%` }}
+            />
+          </div>
+          <p className="mt-0.5 text-xs text-slate-400">{row.totalQty} item terjual</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function SectionTitle({ title, subtitle, to }: { title: string; subtitle: string; to?: string }) {
   return (
     <div className="mb-4 flex items-start justify-between gap-4">
@@ -185,6 +208,14 @@ export function DashboardHomePage() {
   const productsQuery = useQuery({
     queryKey: queryKeys.reports.products({ startDate, endDate }),
     queryFn: () => api.get<ProductReportRow[]>(`/reports/products?start=${startQuery}&end=${endQuery}`),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  })
+
+  const categoriesQuery = useQuery({
+    queryKey: queryKeys.reports.categories({ startDate, endDate }),
+    queryFn: () => api.get<CategoryReportRow[]>(`/reports/categories?start=${startQuery}&end=${endQuery}`),
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
@@ -230,6 +261,7 @@ export function DashboardHomePage() {
   const averageSale = totalSales > 0 ? Math.round(totalRevenue / totalSales) : 0
   const lowStock = lowStockQuery.data ?? []
   const topProducts = (productsQuery.data ?? []).slice(0, 5)
+  const categoryRows = categoriesQuery.data ?? []
   const recentSales = recentSalesQuery.data?.data ?? []
 
   const stats = [
@@ -282,7 +314,7 @@ export function DashboardHomePage() {
         </section>
 
         <section className="card">
-          <SectionTitle title="Produk Terlaris" subtitle="Top 5 berdasarkan qty" to="/dashboard/reports" />
+          <SectionTitle title="Produk Terlaris" subtitle="5 teratas berdasarkan jumlah" to="/dashboard/reports" />
 
           {productsQuery.isLoading ? (
             <InlineLoading>Memuat produk terlaris...</InlineLoading>
@@ -306,8 +338,23 @@ export function DashboardHomePage() {
         </section>
       </div>
 
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        <section className="card">
+          <SectionTitle title="Omzet per Kategori" subtitle="7 hari terakhir" to="/dashboard/reports" />
+          {categoriesQuery.isLoading ? (
+            <InlineLoading>Memuat kategori...</InlineLoading>
+          ) : categoriesQuery.isError ? (
+            <ErrorNote>Gagal memuat kategori.</ErrorNote>
+          ) : categoryRows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-400">Belum ada penjualan 7 hari terakhir</p>
+          ) : (
+            <CategoryBars rows={categoryRows.slice(0, 6)} />
+          )}
+        </section>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="card overflow-hidden p-0">
+        <section className="table-shell overflow-hidden p-0">
           <div className="border-b border-slate-100 p-4">
             <SectionTitle title="Transaksi Terbaru" subtitle="5 transaksi terakhir" to="/dashboard/sales" />
           </div>
@@ -325,7 +372,7 @@ export function DashboardHomePage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50 text-left">
-                    <th className="px-4 py-3 font-medium text-slate-600">Invoice</th>
+                    <th className="px-4 py-3 font-medium text-slate-600">Faktur</th>
                     <th className="px-4 py-3 font-medium text-slate-600">Kasir</th>
                     <th className="px-4 py-3 font-medium text-slate-600 text-right">Total</th>
                     <th className="px-4 py-3 font-medium text-slate-600">Status</th>
@@ -378,7 +425,7 @@ export function DashboardHomePage() {
                     <p className="text-xs text-slate-500">SKU: {product.sku ?? '-'}</p>
                   </div>
                   <p className="shrink-0 text-sm font-medium text-red-700">
-                    {product.stock} / min {product.minStock}
+                    {product.stock} / minimal {product.minStock}
                   </p>
                 </div>
               ))}
