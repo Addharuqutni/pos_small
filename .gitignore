@@ -9,5 +9,6 @@ api/.env
 api/.env.*
 !api/.env.example
 .DS_Store
-docs/
+docs/*
+!docs/screenshots/
 .claude/
