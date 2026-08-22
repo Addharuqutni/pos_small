@@ -16,9 +16,13 @@ Antarmuka berbahasa Indonesia, sedangkan kode, nama file, dan route API mengguna
 
 ## Screenshot
 
-<!-- Tambahkan tangkapan layar di sini, contoh:
-![Dasbor POS](docs/screenshot.png)
--->
+| Login | Layar Kasir (POS) |
+|:---:|:---:|
+| ![Halaman login](docs/screenshots/login.png) | ![Layar kasir POS](docs/screenshots/cashier-pos.png) |
+
+| Dasbor | Manajemen Produk |
+|:---:|:---:|
+| ![Dasbor owner](docs/screenshots/dashboard.png) | ![Manajemen produk](docs/screenshots/products.png) |
 
 ## Fitur
 
