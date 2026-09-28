@@ -46,7 +46,7 @@ export async function backupRoutes(app: FastifyInstance) {
       entityType: 'backup',
       entityId: 'full',
       ipAddress: request.ip,
-    })
+    }, db)
 
     const timestamp = new Date().toISOString().slice(0, 10)
     reply.header('Content-Type', 'application/json')

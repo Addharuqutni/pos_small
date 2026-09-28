@@ -1,4 +1,4 @@
-import { db } from '../db/client.js'
+import type { Db } from '../db/types.js'
 import { auditLogs } from '../db/schema.js'
 
 interface AuditEntry {
@@ -11,10 +11,10 @@ interface AuditEntry {
   ipAddress?: string
 }
 
-type AuditConnection = Pick<typeof db, 'insert'>
+/** Row-writer accepted by logAudit: the db handle, or the tx handle from db.transaction. */
+type AuditConnection = Pick<Db, 'insert'>
 
-export async function logAudit(entry: AuditEntry, tx?: AuditConnection) {
-  const conn = tx ?? db
+export async function logAudit(entry: AuditEntry, conn: AuditConnection) {
   await conn.insert(auditLogs).values({
     actorUserId: entry.actorUserId,
     action: entry.action,

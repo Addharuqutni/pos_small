@@ -25,6 +25,7 @@
     "zod": "^3.25.36"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/bcrypt": "^5.0.2",
     "@types/node": "^22.15.0",
     "drizzle-kit": "^0.31.8",

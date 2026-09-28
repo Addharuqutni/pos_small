@@ -86,7 +86,7 @@ export async function authRoutes(app: FastifyInstance) {
       entityType: 'user',
       entityId: user.id,
       ipAddress: request.ip,
-    })
+    }, db)
 
     return {
       id: user.id,
@@ -111,7 +111,7 @@ export async function authRoutes(app: FastifyInstance) {
       entityType: 'user',
       entityId: request.user.id,
       ipAddress: request.ip,
-    })
+    }, db)
 
     return { message: 'Berhasil keluar' }
   })

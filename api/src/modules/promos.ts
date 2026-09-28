@@ -1,13 +1,13 @@
 import type { FastifyInstance } from 'fastify'
-import { eq, and, or, lte, gte, isNull, desc } from 'drizzle-orm'
+import { eq, desc } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/client.js'
 import { promos } from '../db/schema.js'
 import { validate, validateIdParam } from '../lib/validation.js'
 import { requireAuth, requireRole } from '../lib/auth.js'
 import { logAudit } from '../lib/audit.js'
-import { NotFound } from '../lib/errors.js'
-import { computePromoDiscount } from '../lib/sales-rules.js'
+import { NotFound, Conflict } from '../lib/errors.js'
+import { validatePromo } from '../domain/promo.js'
 
 const createSchema = z.object({
   code: z.string().min(1).max(50).transform((v) => v.trim().toUpperCase()),
@@ -44,40 +44,7 @@ export async function promoRoutes(app: FastifyInstance) {
   // GET /api/promos/validate?code=&subtotal= — cashier-facing, no role restriction
   app.get('/validate', async (request) => {
     const { code, subtotal } = validate(validateQuerySchema, request.query)
-
-    const now = new Date()
-    const [promo] = await db
-      .select()
-      .from(promos)
-      .where(
-        and(
-          eq(promos.code, code),
-          eq(promos.isActive, true),
-          lte(promos.startsAt, now),
-          or(isNull(promos.endsAt), gte(promos.endsAt, now)),
-        ),
-      )
-      .limit(1)
-
-    if (!promo) throw new NotFound('Promo tidak ditemukan atau sudah tidak berlaku')
-    if (promo.usageLimit != null && promo.usageCount >= promo.usageLimit) {
-      throw new NotFound('Promo sudah mencapai batas pemakaian')
-    }
-    if (subtotal < promo.minPurchase) {
-      throw new NotFound(`Minimal belanja untuk promo ini ${promo.minPurchase}`)
-    }
-
-    const discount = computePromoDiscount(promo.type, promo.value, subtotal, promo.maxDiscount)
-
-    return {
-      id: promo.id,
-      code: promo.code,
-      name: promo.name,
-      type: promo.type,
-      value: promo.value,
-      maxDiscount: promo.maxDiscount,
-      discount,
-    }
+    return validatePromo(db, code, subtotal)
   })
 
   // GET /api/promos — owner/admin
@@ -90,7 +57,7 @@ export async function promoRoutes(app: FastifyInstance) {
     const data = validate(createSchema, request.body)
 
     const [existing] = await db.select({ id: promos.id }).from(promos).where(eq(promos.code, data.code)).limit(1)
-    if (existing) throw new NotFound('Kode promo sudah dipakai')
+    if (existing) throw new Conflict('Kode promo sudah dipakai')
 
     const [promo] = await db
       .insert(promos)
@@ -114,7 +81,7 @@ export async function promoRoutes(app: FastifyInstance) {
       entityId: promo!.id,
       after: promo!,
       ipAddress: request.ip,
-    })
+    }, db)
 
     reply.status(201)
     return promo!
@@ -147,7 +114,7 @@ export async function promoRoutes(app: FastifyInstance) {
       before,
       after: updated,
       ipAddress: request.ip,
-    })
+    }, db)
 
     return updated
   })

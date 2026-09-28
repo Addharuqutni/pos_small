@@ -73,7 +73,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 }
 
 // Run as standalone server only outside Vercel.
-// ponytail: Vercel entry uses buildApp() directly via api/index.ts.
+// ponytail: Vercel entry reaches buildApp() via the repo-root vercel-handler.ts.
 if (!process.env.VERCEL) {
   const app = await buildApp()
   const port = Number(process.env.PORT) || 4000

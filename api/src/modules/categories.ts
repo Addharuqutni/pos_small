@@ -37,7 +37,7 @@ export async function categoryRoutes(app: FastifyInstance) {
       entityId: cat!.id,
       after: cat!,
       ipAddress: request.ip,
-    })
+    }, db)
 
     reply.status(201)
     return cat!
@@ -65,7 +65,7 @@ export async function categoryRoutes(app: FastifyInstance) {
       before,
       after: updated,
       ipAddress: request.ip,
-    })
+    }, db)
 
     return updated
   })

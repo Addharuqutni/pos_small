@@ -49,7 +49,7 @@ export async function supplierRoutes(app: FastifyInstance) {
       entityId: supplier!.id,
       after: supplier!,
       ipAddress: request.ip,
-    })
+    }, db)
 
     reply.status(201)
     return supplier!
@@ -77,7 +77,7 @@ export async function supplierRoutes(app: FastifyInstance) {
       before,
       after: updated,
       ipAddress: request.ip,
-    })
+    }, db)
 
     return updated
   })

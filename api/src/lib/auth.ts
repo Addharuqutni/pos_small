@@ -6,29 +6,6 @@ import { Unauthorized, Forbidden } from './errors.js'
 
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
-// In-memory session cache — avoids a DB round-trip on every authenticated request.
-// Entries are short-lived (60s) so deactivation / logout propagates quickly.
-const SESSION_CACHE_TTL_MS = 60_000
-interface CachedSession {
-  user: AuthUser
-  expiresAt: number // wall-clock ms when this cache entry expires
-}
-const sessionCache = new Map<string, CachedSession>()
-
-function readCachedSession(sid: string): AuthUser | null {
-  const hit = sessionCache.get(sid)
-  if (!hit) return null
-  if (Date.now() > hit.expiresAt) {
-    sessionCache.delete(sid)
-    return null
-  }
-  return hit.user
-}
-
-function invalidateSession(sid: string) {
-  sessionCache.delete(sid)
-}
-
 export interface AuthUser {
   id: string
   name: string
@@ -60,20 +37,12 @@ export async function createSession(userId: string): Promise<string> {
 }
 
 export async function deleteSession(sessionId: string) {
-  invalidateSession(sessionId)
   await db.delete(sessions).where(eq(sessions.id, sessionId))
 }
 
 export async function requireAuth(request: FastifyRequest, _reply: FastifyReply) {
   const sid = request.cookies.sid
   if (!sid) throw new Unauthorized()
-
-  // Fast path — serve from cache when available.
-  const cached = readCachedSession(sid)
-  if (cached) {
-    request.user = cached
-    return
-  }
 
   const [row] = await db
     .select({
@@ -92,16 +61,13 @@ export async function requireAuth(request: FastifyRequest, _reply: FastifyReply)
   if (!row) throw new Unauthorized()
   if (!row.isActive) throw new Forbidden('Akun dinonaktifkan')
 
-  const user: AuthUser = {
+  request.user = {
     id: row.userId,
     name: row.name,
     email: row.email,
     role: row.role,
     isActive: row.isActive,
   }
-
-  sessionCache.set(sid, { user, expiresAt: Date.now() + SESSION_CACHE_TTL_MS })
-  request.user = user
 }
 
 export function requireRole(...roles: AuthUser['role'][]) {

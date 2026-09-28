@@ -145,7 +145,7 @@ export async function productRoutes(app: FastifyInstance) {
       entityId: product!.id,
       after: product!,
       ipAddress: request.ip,
-    })
+    }, db)
 
     reply.status(201)
     return product!
@@ -177,7 +177,7 @@ export async function productRoutes(app: FastifyInstance) {
       before,
       after: updated,
       ipAddress: request.ip,
-    })
+    }, db)
 
     return updated
   })

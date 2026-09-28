@@ -80,7 +80,7 @@ export async function userRoutes(app: FastifyInstance) {
       entityId: user!.id,
       after: user!,
       ipAddress: request.ip,
-    })
+    }, db)
 
     reply.status(201)
     return user!
@@ -123,7 +123,7 @@ export async function userRoutes(app: FastifyInstance) {
       before,
       after: updated,
       ipAddress: request.ip,
-    })
+    }, db)
 
     return updated
   })
@@ -145,7 +145,7 @@ export async function userRoutes(app: FastifyInstance) {
       entityType: 'user',
       entityId: id,
       ipAddress: request.ip,
-    })
+    }, db)
 
     return { message: 'Kata sandi berhasil direset' }
   })
