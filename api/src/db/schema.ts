@@ -147,12 +147,17 @@ export const saleItems = pgTable('sale_items', {
   price: integer('price').notNull(),
   discount: integer('discount').notNull().default(0),
   subtotal: integer('subtotal').notNull(),
+  /** Product cost at the moment of sale; profit reporting uses it. */
+  costPrice: integer('cost_price').notNull().default(0),
+  /** True when cost_price was backfilled from the product (not the sale). */
+  costEstimated: boolean('cost_estimated').notNull().default(false),
 }, (t) => [
   index('sale_items_sale_id_idx').on(t.saleId),
   check('sale_items_qty_check', sql`qty > 0`),
   check('sale_items_price_check', sql`price >= 0`),
   check('sale_items_discount_check', sql`discount >= 0`),
   check('sale_items_subtotal_check', sql`subtotal >= 0`),
+  check('sale_items_cost_price_check', sql`cost_price >= 0`),
 ])
 
 // --- Payments ---

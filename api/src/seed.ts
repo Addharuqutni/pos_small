@@ -184,7 +184,7 @@ async function seedDemoData(adminId: string, cashierIds: string[]) {
         lineDiscountTotal += discount * qty
         const itemId = newId()
         itemIds.push(itemId)
-        saleItemRows.push({ id: itemId, saleId, productId: product.id, productNameSnapshot: product.name, qty, price: product.price, discount, subtotal: itemSubtotal })
+        saleItemRows.push({ id: itemId, saleId, productId: product.id, productNameSnapshot: product.name, qty, price: product.price, discount, subtotal: itemSubtotal, costPrice: product.costPrice, costEstimated: false })
         saleMovementRows.push({ productId: product.id, type: 'sale', qtyChange: -qty, stockBefore: before, stockAfter: before - qty, referenceType: 'sale', referenceId: saleId, notes: `Demo sale ${saleIndex + 1}`, createdBy: cashierIds[saleIndex % cashierIds.length]!, createdAt })
       }
       const promoDiscount = promo.type === 'percent' ? Math.min(Math.round(subtotal * promo.value / 100), promo.maxDiscount ?? subtotal) : Math.min(promo.value, subtotal)

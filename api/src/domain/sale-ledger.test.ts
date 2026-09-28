@@ -86,6 +86,69 @@ test('checkout with insufficient stock persists nothing', async () => {
   assert.equal(row!.stock, 1)
 })
 
+test('checkout accepts a mixed cash + qris tender and records both payments', async () => {
+  const { cashier, product } = await fixtures({ price: 20_000 }) // tax 11% -> 22 200
+  const { saleId } = await checkoutSale(ctx.db, actor(cashier.id), {
+    items: [{ productId: product.id, qty: 1 }],
+    payments: [
+      { method: 'cash', amount: 10_000 },
+      { method: 'qris', amount: 12_200, referenceNo: 'QR-1' },
+    ],
+  })
+
+  const rows = await ctx.db.select().from(payments).where(eq(payments.saleId, saleId))
+  assert.equal(rows.length, 2)
+  const [sale] = await ctx.db.select().from(sales).where(eq(sales.id, saleId))
+  assert.equal(sale!.paidTotal, 22_200)
+  assert.equal(sale!.changeTotal, 0)
+})
+
+test('checkout rejects a duplicated payment method and persists nothing', async () => {
+  const { cashier, product } = await fixtures()
+  await assert.rejects(
+    checkoutSale(ctx.db, actor(cashier.id), {
+      items: [{ productId: product.id, qty: 1 }],
+      payments: [
+        { method: 'cash', amount: 10_000 },
+        { method: 'cash', amount: 20_000 },
+      ],
+    }),
+    /Setiap metode pembayaran hanya boleh sekali/,
+  )
+  assert.equal((await ctx.db.select().from(sales)).length, 0)
+  assert.equal((await ctx.db.select().from(payments)).length, 0)
+})
+
+test('checkout rejects a non-cash tender above the total', async () => {
+  const { cashier, product } = await fixtures()
+  await assert.rejects(
+    checkoutSale(ctx.db, actor(cashier.id), {
+      items: [{ productId: product.id, qty: 1 }],
+      payments: [{ method: 'qris', amount: 100_000 }],
+    }),
+    /Pembayaran non-tunai melebihi total tagihan/,
+  )
+})
+
+test('checkout snapshots the product cost price on each sale item', async () => {
+  const { cashier, product } = await fixtures({ price: 20_000 })
+  await ctx.db.update(products).set({ costPrice: 13_500 }).where(eq(products.id, product.id))
+
+  const { saleId } = await checkoutSale(ctx.db, actor(cashier.id), {
+    items: [{ productId: product.id, qty: 2 }],
+    payments: [{ method: 'cash', amount: 50_000 }],
+  })
+
+  const [item] = await ctx.db.select().from(saleItems).where(eq(saleItems.saleId, saleId))
+  assert.equal(item!.costPrice, 13_500)
+  assert.equal(item!.costEstimated, false)
+
+  // Changing the product cost later must not rewrite the snapshot.
+  await ctx.db.update(products).set({ costPrice: 99_000 }).where(eq(products.id, product.id))
+  const [unchanged] = await ctx.db.select().from(saleItems).where(eq(saleItems.saleId, saleId))
+  assert.equal(unchanged!.costPrice, 13_500)
+})
+
 test('checkout without an open shift is rejected', async () => {
   const { cashier, product } = await fixtures()
   await ctx.db.delete(shifts)
@@ -289,7 +352,8 @@ test('getSaleWithDetails returns cashier, items, payments and refunds', async ()
   const { cashier, product } = await fixtures()
   const { saleId } = await checkoutSale(ctx.db, actor(cashier.id), {
     items: [{ productId: product.id, qty: 2 }],
-    payments: [{ method: 'qris', amount: 50_000 }],
+    // Non-cash tender must not exceed the total (44 400 with 11% tax).
+    payments: [{ method: 'qris', amount: 44_400 }],
   })
 
   const detail = await getSaleWithDetails(ctx.db, saleId)

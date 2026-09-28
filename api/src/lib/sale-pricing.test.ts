@@ -15,7 +15,7 @@ test('priceSale computes whole-sale totals', () => {
       { price: 25_000, qty: 1, discount: 0, name: 'Kue' },
     ],
     taxRate: 11,
-    paid: 50_000,
+    payments: [{ method: 'cash', amount: 50_000 }],
   })
 
   assert.equal(result.lines.length, 2)
@@ -43,7 +43,7 @@ test('priceSale applies promo percent with maxDiscount cap and sale discount', (
     promo: { type: 'percent', value: 50, maxDiscount: 20_000 },
     saleDiscount: 5_000,
     taxRate: 10,
-    paid: 80_000,
+    payments: [{ method: 'cash', amount: 80_000 }],
   })
 
   assert.equal(result.subtotal, 100_000)
@@ -137,7 +137,7 @@ test('priceSale reports sale discount above the promo-reduced subtotal', () => {
   assert.equal(result.errors[0]?.message, 'Diskon penjualan melebihi subtotal')
 })
 
-test('priceSale skips the underpayment check when paid is omitted', () => {
+test('priceSale skips the payment checks when payments is omitted', () => {
   const result = priceSale({ lines: [{ price: 10_000, qty: 1, discount: 0 }], taxRate: 0 })
 
   assert.equal(result.paidTotal, 0)
@@ -150,7 +150,7 @@ test('priceSale reports exact change and refuses negative change', () => {
   const exact = priceSale({
     lines: [{ price: 45_000, qty: 1, discount: 0 }],
     taxRate: 0,
-    paid: 45_000,
+    payments: [{ method: 'cash', amount: 45_000 }],
   })
   assert.equal(exact.changeTotal, 0)
   assert.equal(exact.ok, true)
@@ -158,9 +158,87 @@ test('priceSale reports exact change and refuses negative change', () => {
   const overpaid = priceSale({
     lines: [{ price: 45_000, qty: 1, discount: 0 }],
     taxRate: 0,
-    paid: 100_000,
+    payments: [{ method: 'cash', amount: 100_000 }],
   })
   assert.equal(overpaid.changeTotal, 55_000)
+})
+
+test('priceSale accepts a mixed cash + qris payment that covers the total exactly', () => {
+  const result = priceSale({
+    lines: [{ price: 50_000, qty: 1, discount: 0 }],
+    taxRate: 0,
+    payments: [
+      { method: 'cash', amount: 20_000 },
+      { method: 'qris', amount: 30_000 },
+    ],
+  })
+
+  assert.equal(result.subtotal, 50_000)
+  assert.equal(result.grandTotal, 50_000)
+  assert.equal(result.paidTotal, 50_000)
+  assert.equal(result.changeTotal, 0)
+  assert.deepEqual(result.errors, [])
+  assert.equal(result.ok, true)
+})
+
+test('priceSale rejects non-cash payments above the total (no change on qris)', () => {
+  // 47 500 total, but 50 000 tendered on qris: change may only come from cash.
+  const result = priceSale({
+    lines: [{ price: 47_500, qty: 1, discount: 0 }],
+    taxRate: 0,
+    payments: [{ method: 'qris', amount: 50_000 }],
+  })
+
+  assert.equal(result.grandTotal, 47_500)
+  assert.equal(result.paidTotal, 50_000)
+  assert.deepEqual(result.errors.map((e) => e.code), ['non_cash_exceeds_total'])
+  assert.equal(result.errors[0]?.message, 'Pembayaran non-tunai melebihi total tagihan')
+})
+
+test('priceSale rejects a duplicated payment method', () => {
+  const result = priceSale({
+    lines: [{ price: 50_000, qty: 1, discount: 0 }],
+    taxRate: 0,
+    payments: [
+      { method: 'cash', amount: 30_000 },
+      { method: 'cash', amount: 20_000 },
+    ],
+  })
+
+  assert.deepEqual(result.errors.map((e) => e.code), ['duplicate_payment_method'])
+  assert.equal(result.errors[0]?.message, 'Setiap metode pembayaran hanya boleh sekali')
+})
+
+test('priceSale orders payment errors: duplicate before non-cash before underpaid', () => {
+  const duplicateAndNonCash = priceSale({
+    lines: [{ price: 50_000, qty: 1, discount: 0 }],
+    taxRate: 0,
+    payments: [
+      { method: 'qris', amount: 60_000 },
+      { method: 'qris', amount: 1_000 },
+    ],
+  })
+  assert.deepEqual(
+    duplicateAndNonCash.errors.map((e) => e.code),
+    ['duplicate_payment_method', 'non_cash_exceeds_total'],
+  )
+
+  const duplicateAndUnderpaid = priceSale({
+    lines: [{ price: 50_000, qty: 1, discount: 0 }],
+    taxRate: 0,
+    payments: [
+      { method: 'cash', amount: 10_000 },
+      { method: 'cash', amount: 5_000 },
+    ],
+  })
+  assert.deepEqual(
+    duplicateAndUnderpaid.errors.map((e) => e.code),
+    ['duplicate_payment_method', 'underpaid'],
+  )
+  assert.equal(
+    duplicateAndUnderpaid.errors[1]?.message,
+    'Pembayaran kurang: butuh 50000, diterima 15000',
+  )
 })
 
 test('lineSubtotal applies per-unit discount then multiplies by qty', () => {

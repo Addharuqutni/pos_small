@@ -39,6 +39,7 @@ test('migrations folder (journal entries) produces the schema declared in schema
       'shifts_opening_cash_check',
       'sale_items_qty_check', 'sale_items_price_check',
       'sale_items_discount_check', 'sale_items_subtotal_check',
+      'sale_items_cost_price_check',
       'sales_subtotal_check', 'sales_grand_total_check',
       'payments_amount_check', 'refund_items_qty_check',
       'refund_items_amount_check', 'promos_value_check',
@@ -72,6 +73,15 @@ test('migrations folder (journal entries) produces the schema declared in schema
     assert.ok(names.includes('promo_id'))
     assert.ok(names.includes('promo_code'))
     assert.ok(names.includes('promo_discount'))
+
+    // 0002 adds the profit cost snapshot columns on sale_items.
+    const itemCols = await client.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+       where table_schema = 'public' and table_name = 'sale_items' order by column_name`,
+    )
+    const itemNames = itemCols.rows.map((r) => r.column_name)
+    assert.ok(itemNames.includes('cost_price'))
+    assert.ok(itemNames.includes('cost_estimated'))
   } finally {
     await client.close()
   }

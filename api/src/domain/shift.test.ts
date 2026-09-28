@@ -91,6 +91,27 @@ test('closeShift computes expectedCash = opening + cash sales − cash refunds',
   assert.equal(closed.status, 'closed')
 })
 
+test('expectedCash nets out change handed back on a cash overpayment', async () => {
+  const cashier = await createUser(ctx.db)
+  await createSettings(ctx.db, { taxEnabled: false, taxRate: 0 })
+  const product = await createProduct(ctx.db, { price: 47_500, stock: 10 })
+  await openShift(ctx.db, actor(cashier.id), { openingCash: 0 })
+
+  // Customer hands over 50 000 for a 47 500 total: 2 500 leaves the drawer again.
+  const { saleId } = await checkoutSale(ctx.db, actor(cashier.id), {
+    items: [{ productId: product.id, qty: 1 }],
+    payments: [{ method: 'cash', amount: 50_000 }],
+  })
+  const [sale] = await ctx.db.select().from(sales).where(eq(sales.id, saleId))
+  assert.equal(sale!.grandTotal, 47_500)
+  assert.equal(sale!.changeTotal, 2_500)
+
+  const closed = await closeShift(ctx.db, actor(cashier.id), { closingCash: 47_500 })
+  // 0 + 50 000 tendered − 2 500 change = 47 500 in the drawer.
+  assert.equal(closed.expectedCash, 47_500)
+  assert.equal(closed.difference, 0)
+})
+
 test('void sales are excluded from expectedCash', async () => {
   const cashier = await createUser(ctx.db)
   await createSettings(ctx.db, { taxEnabled: false, taxRate: 0 })

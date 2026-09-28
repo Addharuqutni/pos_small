@@ -1,33 +1,40 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { sql, and, gte, lte } from 'drizzle-orm'
+import { sql, and, gte, lte, type SQL } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { sales, saleItems, products, categories } from '../db/schema.js'
 import { requireAuth, requireRole } from '../lib/auth.js'
 import { validateQuery } from '../lib/query-validation.js'
+import { businessDateSql, reportFilterConditions, reportFilterQuerySchema } from '../domain/report-filters.js'
+import { cashierReport } from '../domain/cashier-report.js'
+import { profitReport } from '../domain/profit-report.js'
 
-const salesReportQuerySchema = z.object({
+/** Shared date range + filters every report endpoint accepts. */
+const reportRangeQuerySchema = reportFilterQuerySchema.extend({
   start: z.string().datetime().or(z.string().date()),
   end: z.string().datetime().or(z.string().date()),
+})
+
+const salesReportQuerySchema = reportRangeQuerySchema.extend({
   format: z.enum(['csv', 'json', 'html']).optional().default('json'),
 })
 
-const productsReportQuerySchema = z.object({
-  start: z.string().datetime().or(z.string().date()),
-  end: z.string().datetime().or(z.string().date()),
+const productsReportQuerySchema = reportRangeQuerySchema.extend({
   format: z.enum(['csv', 'json']).optional().default('json'),
 })
 
-const categoriesReportQuerySchema = z.object({
-  start: z.string().datetime().or(z.string().date()),
-  end: z.string().datetime().or(z.string().date()),
+const categoriesReportQuerySchema = reportRangeQuerySchema.extend({
+  format: z.enum(['csv', 'json']).optional().default('json'),
 })
 
-const BUSINESS_TIME_ZONE = 'Asia/Jakarta'
+const cashiersReportQuerySchema = reportRangeQuerySchema.extend({
+  format: z.enum(['csv', 'json']).optional().default('json'),
+})
 
-function businessDateSql(column: typeof sales.createdAt) {
-  return sql`(${column} AT TIME ZONE ${sql.raw(`'${BUSINESS_TIME_ZONE}'`)})::date`
-}
+const profitReportQuerySchema = reportRangeQuerySchema.extend({
+  groupBy: z.enum(['product', 'category', 'day']).default('product'),
+  format: z.enum(['csv', 'json']).optional().default('json'),
+})
 
 /**
  * Sanitize a date-like string for safe use in HTTP headers (remove CR/LF/quotes).
@@ -56,12 +63,14 @@ export async function reportRoutes(app: FastifyInstance) {
 
   // GET /api/reports/sales?start=&end=&format=csv
   app.get('/sales', async (request, reply) => {
-    const { start, end, format } = validateQuery(salesReportQuerySchema, request.query)
+    const query = validateQuery(salesReportQuerySchema, request.query)
+    const { start, end, format } = query
     const reportDate = businessDateSql(sales.createdAt)
 
-    const conditions = [
+    const conditions: SQL[] = [
       gte(sales.createdAt, new Date(start)),
       lte(sales.createdAt, new Date(end)),
+      ...reportFilterConditions(query),
     ]
 
     const rows = await db
@@ -73,7 +82,7 @@ export async function reportRoutes(app: FastifyInstance) {
         totalTax: sql<number>`COALESCE(SUM(${sales.taxTotal}), 0)`.as('totalTax'),
       })
       .from(sales)
-      .where(and(...conditions, sql`${sales.status} != 'void'`))
+      .where(and(...conditions))
       .groupBy(reportDate)
       .orderBy(reportDate)
 
@@ -86,7 +95,7 @@ export async function reportRoutes(app: FastifyInstance) {
         totalTax: sql<number>`COALESCE(SUM(${sales.taxTotal}), 0)`,
       })
       .from(sales)
-      .where(and(...conditions, sql`${sales.status} != 'void'`))
+      .where(and(...conditions))
 
     if (format === 'csv') {
       const csv = toCsv(
@@ -124,7 +133,8 @@ export async function reportRoutes(app: FastifyInstance) {
 
   // GET /api/reports/products?start=&end=
   app.get('/products', async (request, reply) => {
-    const { start, end, format } = validateQuery(productsReportQuerySchema, request.query)
+    const query = validateQuery(productsReportQuerySchema, request.query)
+    const { start, end, format } = query
 
     const rows = await db
       .select({
@@ -139,7 +149,7 @@ export async function reportRoutes(app: FastifyInstance) {
         and(
           gte(sales.createdAt, new Date(start)),
           lte(sales.createdAt, new Date(end)),
-          sql`${sales.status} != 'void'`,
+          ...reportFilterConditions(query),
         ),
       )
       .groupBy(saleItems.productId, saleItems.productNameSnapshot)
@@ -185,8 +195,9 @@ export async function reportRoutes(app: FastifyInstance) {
   })
 
   // GET /api/reports/categories?start=&end= — sales breakdown by category
-  app.get('/categories', async (request) => {
-    const { start, end } = validateQuery(categoriesReportQuerySchema, request.query)
+  app.get('/categories', async (request, reply) => {
+    const query = validateQuery(categoriesReportQuerySchema, request.query)
+    const { start, end, format } = query
 
     const rows = await db
       .select({
@@ -203,12 +214,71 @@ export async function reportRoutes(app: FastifyInstance) {
         and(
           gte(sales.createdAt, new Date(start)),
           lte(sales.createdAt, new Date(end)),
-          sql`${sales.status} != 'void'`,
+          ...reportFilterConditions(query),
         ),
       )
       .groupBy(products.categoryId, categories.name)
       .orderBy(sql`COALESCE(SUM(${saleItems.subtotal}), 0) DESC`)
 
+    if (format === 'csv') {
+      const csv = toCsv(
+        ['categoryId', 'categoryName', 'totalQty', 'totalRevenue'],
+        rows,
+      )
+      reply.header('Content-Type', 'text/csv')
+      reply.header(
+        'Content-Disposition',
+        `attachment; filename="category-report-${sanitizeForHeader(start)}-${sanitizeForHeader(end)}.csv"`,
+      )
+      return csv
+    }
+
     return rows
+  })
+
+  // GET /api/reports/cashiers?start=&end=&format=json|csv
+  app.get('/cashiers', async (request, reply) => {
+    const query = validateQuery(cashiersReportQuerySchema, request.query)
+    const { start, end, format } = query
+
+    const rows = await cashierReport(db, { start, end, filters: query })
+
+    if (format === 'csv') {
+      const csv = toCsv(
+        ['cashierId', 'cashierName', 'saleCount', 'grossSales', 'discountTotal', 'voidCount', 'voidTotal', 'refundTotal', 'netSales'],
+        rows,
+      )
+      reply.header('Content-Type', 'text/csv')
+      reply.header(
+        'Content-Disposition',
+        `attachment; filename="cashier-report-${sanitizeForHeader(start)}-${sanitizeForHeader(end)}.csv"`,
+      )
+      return csv
+    }
+
+    return { rows }
+  })
+
+  // GET /api/reports/profit?start=&end=&groupBy=product|category|day — owner only
+  app.get('/profit', { preHandler: [requireRole('owner')] }, async (request, reply) => {
+    const query = validateQuery(profitReportQuerySchema, request.query)
+    const { start, end, groupBy, format } = query
+
+    const report = await profitReport(db, { start, end, groupBy: groupBy ?? 'product', filters: query })
+
+    if (format === 'csv') {
+      const csv = toCsv(
+        ['key', 'label', 'qty', 'revenue', 'cogs', 'grossProfit', 'marginPct', 'hasEstimatedCost'],
+        report.rows,
+      )
+      reply.header('Content-Type', 'text/csv')
+      reply.header(
+        'Content-Disposition',
+        `attachment; filename="profit-report-${sanitizeForHeader(start)}-${sanitizeForHeader(end)}.csv"`,
+      )
+      return csv
+    }
+
+    return report
   })
 }

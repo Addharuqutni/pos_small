@@ -69,23 +69,36 @@ export async function openShift(db: Db, actor: ShiftActor, input: OpenShiftInput
   })
 }
 
-/** Expected cash for a shift: opening + cash sales (non-void) − cash refunds. */
+/**
+ * Expected cash for a shift: opening cash + cash tendered (non-void sales)
+ * − change handed back (non-void sales) − cash refunds.
+ *
+ * `payments.amount` is what the customer handed over, so change
+ * (`sales.change_total`) leaves the drawer again; it is always paid from cash.
+ * Cash refunds keep their existing semantics: refunds of sales that had a cash
+ * payment.
+ */
 export async function computeExpectedCash(dbOrTx: Db, shift: ShiftRow): Promise<number> {
-  // Calculate expected cash: opening + cash payments - cash refunds during shift
-  const shiftSalesPayments = await dbOrTx
-    .select({ saleId: sales.id, amount: payments.amount })
-    .from(payments)
-    .innerJoin(sales, eq(payments.saleId, sales.id))
+  const shiftSales = await dbOrTx
+    .select({
+      saleId: sales.id,
+      changeTotal: sales.changeTotal,
+      cashPaid: sql<number>`COALESCE(SUM(CASE WHEN ${payments.method} = 'cash' THEN ${payments.amount} ELSE 0 END), 0)`.as('cashPaid'),
+      hasCashPayment: sql<boolean>`BOOL_OR(${payments.method} = 'cash')`.as('hasCashPayment'),
+    })
+    .from(sales)
+    .leftJoin(payments, eq(payments.saleId, sales.id))
     .where(
       and(
         eq(sales.shiftId, shift.id),
-        eq(payments.method, 'cash'),
         ne(sales.status, 'void'),
       ),
     )
+    .groupBy(sales.id, sales.changeTotal)
 
-  const cashSalesTotal = shiftSalesPayments.reduce((sum, p) => sum + p.amount, 0)
-  const cashSaleIds = [...new Set(shiftSalesPayments.map((p) => p.saleId))]
+  const cashSalesTotal = shiftSales.reduce((sum, sale) => sum + Number(sale.cashPaid), 0)
+  const changeTotal = shiftSales.reduce((sum, sale) => sum + sale.changeTotal, 0)
+  const cashSaleIds = shiftSales.filter((sale) => sale.hasCashPayment).map((sale) => sale.saleId)
   let cashRefundTotal = 0
   if (cashSaleIds.length > 0) {
     const refundRows = await dbOrTx
@@ -102,7 +115,7 @@ export async function computeExpectedCash(dbOrTx: Db, shift: ShiftRow): Promise<
     }
   }
 
-  return shift.openingCash + cashSalesTotal - cashRefundTotal
+  return shift.openingCash + cashSalesTotal - changeTotal - cashRefundTotal
 }
 
 /**

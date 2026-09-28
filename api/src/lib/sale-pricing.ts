@@ -3,12 +3,12 @@
  * cashier UI: zero imports and no Node APIs, so the frontend imports this exact
  * file (compiles under NodeNext and Vite).
  *
- * `priceSale({ lines, promo, saleDiscount, taxRate, paid })` prices the whole cart
- * (per-unit line discounts) and returns `subtotal`, `lineDiscountTotal`,
+ * `priceSale({ lines, promo, saleDiscount, taxRate, payments })` prices the whole
+ * cart (per-unit line discounts) and returns `subtotal`, `lineDiscountTotal`,
  * `promoDiscount`, `saleDiscount`, `taxable`, `taxTotal`, `grandTotal`,
  * `discountTotal`, `paidTotal`, `changeTotal`, `lines` and soft `errors` (`ok`
  * false when non-empty). Never throws, so incomplete/unpaid carts can be priced;
- * omitting `paid` skips the underpayment check. Rounding, clamping and Indonesian
+ * omitting `payments` skips the payment checks. Rounding, clamping and Indonesian
  * messages mirror the server; promo DB eligibility stays in sales.ts.
  */
 
@@ -30,20 +30,28 @@ export type PricingLine = {
   name?: string
 }
 
+/** One tender line handed to `priceSale`; amounts are integer rupiah. */
+export type PricingPayment = {
+  method: 'cash' | 'qris' | 'transfer'
+  amount: number
+}
+
 export type PriceSaleInput = {
   lines: PricingLine[]
   promo?: PromoRule | null
   saleDiscount?: number
   /** Tax percentage, e.g. 11 for 11%. Pass 0 when tax is disabled. */
   taxRate?: number
-  /** Total amount handed over. Omit/null to skip the underpayment check. */
-  paid?: number | null
+  /** Amounts tendered. Omit/null while the tender is unknown to skip payment checks. */
+  payments?: PricingPayment[] | null
 }
 
 export type SalePricingErrorCode =
   | 'line_discount_exceeds_price'
   | 'sale_discount_exceeds_total'
   | 'promo_min_purchase'
+  | 'duplicate_payment_method'
+  | 'non_cash_exceeds_total'
   | 'underpaid'
 
 export type SalePricingError = {
@@ -164,10 +172,34 @@ export function priceSale(input: PriceSaleInput): SalePricing {
   const taxTotal = Math.round((taxable * (input.taxRate ?? 0)) / 100)
   const grandTotal = taxable + taxTotal
   const discountTotal = lineDiscountTotal + promoDiscount + saleDiscount
-  const paidTotal = input.paid ?? 0
-  if (input.paid != null && paidTotal < grandTotal) {
-    errors.push({ code: 'underpaid', message: `Pembayaran kurang: butuh ${grandTotal}, diterima ${paidTotal}` })
+
+  const tender = input.payments ?? null
+  const paidTotal = tender?.reduce((sum, payment) => sum + payment.amount, 0) ?? 0
+  if (tender) {
+    const methods = new Set<string>()
+    let hasDuplicateMethod = false
+    for (const payment of tender) {
+      if (methods.has(payment.method)) hasDuplicateMethod = true
+      methods.add(payment.method)
+    }
+    if (hasDuplicateMethod) {
+      errors.push({ code: 'duplicate_payment_method', message: 'Setiap metode pembayaran hanya boleh sekali' })
+    }
+
+    const nonCashTotal = tender.reduce(
+      (sum, payment) => (payment.method === 'cash' ? sum : sum + payment.amount),
+      0,
+    )
+    if (nonCashTotal > grandTotal) {
+      errors.push({ code: 'non_cash_exceeds_total', message: 'Pembayaran non-tunai melebihi total tagihan' })
+    }
+
+    if (paidTotal < grandTotal) {
+      errors.push({ code: 'underpaid', message: `Pembayaran kurang: butuh ${grandTotal}, diterima ${paidTotal}` })
+    }
   }
+
+  // Change can only come from cash, since non-cash may not exceed the total.
   const changeTotal = Math.max(0, paidTotal - grandTotal)
 
   return {

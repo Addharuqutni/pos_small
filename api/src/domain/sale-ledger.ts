@@ -198,7 +198,7 @@ export async function checkoutSale(db: Db, actor: SaleActor, input: CheckoutInpu
         : null,
       saleDiscount: input.discount ?? 0,
       taxRate: taxEnabled ? taxRate : 0,
-      paid: input.payments.reduce((sum, p) => sum + p.amount, 0),
+      payments: input.payments.map((p) => ({ method: p.method, amount: p.amount })),
     })
 
     // Errors are ordered exactly as the pre-refactor checks threw them.
@@ -217,6 +217,9 @@ export async function checkoutSale(db: Db, actor: SaleActor, input: CheckoutInpu
       price: productMap.get(item.productId)!.price,
       discount: item.discount ?? 0,
       subtotal: pricing.lines[index]!.net,
+      // Cost snapshot for profit reporting; never estimated on a real sale.
+      costPrice: productMap.get(item.productId)!.costPrice,
+      costEstimated: false,
     }))
 
     const invoiceNo = generateInvoiceNo()
