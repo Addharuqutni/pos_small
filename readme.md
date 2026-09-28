@@ -52,13 +52,15 @@ Antarmuka berbahasa Indonesia, sedangkan kode, nama file, dan route API mengguna
 - Autentikasi berbasis sesi (cookie) dengan role-based access control
 - Offline banner + persistensi keranjang
 - PWA (manifest + icon)
+- Modul pricing bersama `api/src/lib/sale-pricing.ts` (nol dependency) dipakai server dan layar kasir, sehingga total di UI selalu sama dengan total yang dihitung server
+- Logika domain (checkout, void, refund, shift) ada di `api/src/domain/`; istilah domain ada di [`CONTEXT.md`](CONTEXT.md)
 
 ## Bagaimana cara instalasi
 
 ### Prasyarat
 
-- Node 20+ dan npm
-- PostgreSQL (lokal atau Supabase)
+- Node 22.18+ dan npm (native TypeScript type stripping menjalankan `npm test` frontend; Node 24 dipakai saat pengembangan)
+- PostgreSQL (lokal atau Supabase) — test otomatis TIDAK membutuhkannya (lihat `docs/CONTRIBUTING.md`)
 
 ### Backend (`api/`)
 
@@ -66,8 +68,8 @@ Antarmuka berbahasa Indonesia, sedangkan kode, nama file, dan route API mengguna
 cd api
 npm install
 cp .env.example .env      # isi DATABASE_URL, SESSION_SECRET, APP_URL, kredensial owner
-npm run db:generate       # generate migrasi
-npm run db:migrate        # terapkan migrasi
+npm run db:generate       # generate migrasi (review SQL-nya)
+npm run db:migrate        # terapkan migrasi (lihat checklist operator di docs/RUNBOOK.md)
 npm run db:seed           # seed owner + cashier (dataset demo butuh SEED_DEMO=true)
 npm run dev               # http://localhost:4000
 ```
