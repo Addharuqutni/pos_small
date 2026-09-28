@@ -28,9 +28,14 @@ export const queryKeys = {
     list: () => ['users', 'list'] as const,
   },
   reports: {
+    /** Prefix for every report query — report rows can embed date/filter params. */
+    all: ['reports'] as const,
     sales: (params?: Record<string, unknown>) => ['reports', 'sales', params] as const,
     products: (params?: Record<string, unknown>) => ['reports', 'products', params] as const,
     categories: (params?: Record<string, unknown>) => ['reports', 'categories', params] as const,
+    cashiers: (params?: Record<string, unknown>) => ['reports', 'cashiers', params] as const,
+    profit: (params?: Record<string, unknown>, groupBy?: string) =>
+      ['reports', 'profit', params, groupBy] as const,
     shifts: (params?: Record<string, unknown>) => ['reports', 'shifts', params] as const,
     lowStock: () => ['reports', 'low-stock'] as const,
   },

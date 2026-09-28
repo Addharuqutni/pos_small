@@ -11,7 +11,7 @@ export interface CheckoutItems {
 export interface CheckoutPricing {
   /** The priced cart as the engine sees it — hand the same object to the payment modal. */
   input: PriceSaleInput
-  /** Cart priced without a tender (no `paid`), for shelf totals. */
+  /** Cart priced without a tender (no `payments`), for shelf totals. */
   pricing: SalePricing
   /** POST /sales payload lines. */
   items: CheckoutItems[]

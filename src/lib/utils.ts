@@ -15,6 +15,19 @@ export function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
+/**
+ * Format a percentage value (e.g. profit margin) with one decimal.
+ * A missing margin renders as an em dash instead of a fake 0%.
+ */
+export function formatPercent(value: number | null | undefined): string {
+  if (value == null) return '—'
+  const formatted = new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value)
+  return `${formatted}%`
+}
+
 /** Format date to locale string */
 export function formatDate(date: string | Date): string {
   return new Intl.DateTimeFormat('id-ID', {

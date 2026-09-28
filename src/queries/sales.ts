@@ -18,9 +18,9 @@ export function invalidateAfterSaleChange(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
   queryClient.invalidateQueries({ queryKey: queryKeys.sales.all })
   queryClient.invalidateQueries({ queryKey: queryKeys.stock.movements({}) })
-  queryClient.invalidateQueries({ queryKey: queryKeys.reports.sales() })
-  queryClient.invalidateQueries({ queryKey: queryKeys.reports.lowStock() })
-  queryClient.invalidateQueries({ queryKey: queryKeys.reports.shifts() })
+  // Every report (sales, products, categories, cashiers, profit, shifts, low
+  // stock) derives from sales — a single prefix invalidation covers them all.
+  queryClient.invalidateQueries({ queryKey: queryKeys.reports.all })
   queryClient.invalidateQueries({ queryKey: queryKeys.promos.all })
 }
 
@@ -51,7 +51,7 @@ export function useSale(id: string | undefined) {
 
 export interface CheckoutPayload {
   items: { productId: string; qty: number; discount: number }[]
-  payments: { method: PaymentMethod; amount: number }[]
+  payments: { method: PaymentMethod; amount: number; referenceNo?: string }[]
   discount: number
   promoCode?: string
 }

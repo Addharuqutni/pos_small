@@ -8,6 +8,8 @@ export interface ProductListParams {
   search?: string
   category?: string
   active?: boolean
+  /** Page size — report filter pickers raise it above the API default of 20. */
+  limit?: number
 }
 
 /** Product writes change stock levels too, hence the low-stock report. */
@@ -17,14 +19,15 @@ export function invalidateAfterProductChange(queryClient: QueryClient) {
 }
 
 function productsQueryOptions(params: ProductListParams) {
-  const { search, category, active } = params
+  const { search, category, active, limit } = params
   return {
-    queryKey: queryKeys.products.list({ search, category, active }),
+    queryKey: queryKeys.products.list({ search, category, active, limit }),
     queryFn: () => {
       const query = new URLSearchParams()
       if (search) query.set('search', search)
       if (category) query.set('category', category)
       if (active !== undefined) query.set('active', String(active))
+      if (limit != null) query.set('limit', String(limit))
       const qs = query.toString()
       return api.get<PaginatedResponse<Product>>(`/products${qs ? `?${qs}` : ''}`)
     },

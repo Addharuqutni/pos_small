@@ -303,6 +303,50 @@ export interface LowStockProduct {
   minStock: number
 }
 
+/** GET /reports/cashiers — one row per cashier for the range */
+export interface CashierReportRow {
+  cashierId: string
+  cashierName: string
+  saleCount: number
+  grossSales: number
+  discountTotal: number
+  voidCount: number
+  voidTotal: number
+  refundTotal: number
+  netSales: number
+}
+
+export interface CashiersReportResponse {
+  rows: CashierReportRow[]
+}
+
+/** GET /reports/profit — grouping dimension, owner only */
+export type ProfitGroupBy = 'product' | 'category' | 'day'
+
+export interface ProfitReportRow {
+  key: string
+  label: string
+  qty: number
+  revenue: number
+  cogs: number
+  grossProfit: number
+  marginPct: number | null
+  hasEstimatedCost: boolean
+}
+
+export interface ProfitReportSummary {
+  revenue: number
+  cogs: number
+  grossProfit: number
+  marginPct: number | null
+  hasEstimatedCost: boolean
+}
+
+export interface ProfitReportResponse {
+  rows: ProfitReportRow[]
+  summary: ProfitReportSummary
+}
+
 /** GET /shifts/report — shift joined with its cashier's name */
 export interface ShiftReportRow {
   id: string
