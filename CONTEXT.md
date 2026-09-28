@@ -26,6 +26,51 @@ and returns `subtotal`, `lineDiscountTotal`, `promoDiscount`, `saleDiscount`,
 and soft errors (never throws). Owned by `api/src/lib/sale-pricing.ts`, imported
 verbatim by the cashier UI (`src/pages/cashier/use-checkout-pricing.ts`).
 
+## Mixed payment rules
+
+`priceSale` takes `payments: { method: 'cash' | 'qris' | 'transfer'; amount }[]`
+(the exported `PricingPayment` type) — omit/null it while the tender is unknown
+and the payment checks are skipped. Rules: every method at most once
+(`duplicate_payment_method`), non-cash tendered may never exceed the grand total
+(`non_cash_exceeds_total`) because change always comes out of cash, and the sum
+must cover the total (`underpaid`). Error order: line/promo/sale-discount errors,
+then `duplicate_payment_method`, `non_cash_exceeds_total`, `underpaid`.
+`changeTotal = max(0, paidTotal − grandTotal)`.
+
+## Cost snapshot
+
+Each `sale_items` row stores `cost_price` (the product's cost at checkout time,
+so profit never moves when a product's cost changes later) and `cost_estimated`
+(true only for rows backfilled from the current product cost by migration
+`0002_adorable_sugar_man`; checkouts always write false). Purchases update
+`products.cost_price` to the received item's `costPrice` in the same transaction
+that restocks. Owned by `api/src/domain/sale-ledger.ts` (`checkoutSale`).
+
+## Gross profit
+
+Per sale item of non-void sales: `allocated revenue = item.subtotal ×
+(sale.subtotal − promo_discount − discount) / sale.subtotal` (0 when the sale
+subtotal is 0) so sale-level discounts spread proportionally and tax is excluded;
+refunds subtract the refunded item amounts (revenue) and refunded qty (COGS).
+`cogs = cost_price × (qty − refunded qty)`, `grossProfit = revenue − cogs`,
+`marginPct = grossProfit / revenue × 100` (null when revenue is 0, 1 decimal).
+Owned by `api/src/domain/profit-report.ts` (GET `/api/reports/profit`, owner only).
+
+## Report filters
+
+Optional `cashierId`, `paymentMethod`, `status`, `categoryId`, `productId` query
+params shared by `/api/reports/sales|products|categories|cashiers|profit`
+(`paymentMethod` = sale has a payment with that method; `categoryId`/`productId`
+= sale contains a matching item; absent `status` keeps the historical default of
+excluding void sales). Filter→SQL building lives in
+`api/src/domain/report-filters.ts`, so json, csv and html output honour the same
+rows.
+
+The profit report is the exception on two points: it **always** excludes void
+sales (an explicit `status=void` therefore yields no rows), and its
+`productId`/`categoryId` select individual **items** rather than whole sales, so
+a mixed sale contributes only its matching lines.
+
 ## Sale ledger
 
 The write side of Sales and Shifts: `checkoutSale`, `voidSale`, `refundSale`,
@@ -61,8 +106,13 @@ enforces `minPurchase` and returns it to the UI). Management routes are
 
 A cashier's cash session. At most one open shift per cashier (partial unique
 index, enforced under `FOR UPDATE`). Expected cash at close = opening cash +
-cash sales (non-void) − cash refunds. Owned by `api/src/domain/shift.ts`;
-cashier screens via `src/queries/shifts.ts`.
+cash tendered on non-void sales (payments.amount) − change handed back
+(sales.change_total) − cash refunds (refunds on sales that had a cash payment).
+Change is always paid from the drawer: non-cash tenders may not exceed the total
+(see Mixed payment rules). Shifts closed before this fix keep the
+`expected_cash`/`difference` values stored at closing time; only new closes use
+the new formula. Owned by `api/src/domain/shift.ts`; cashier screens via
+`src/queries/shifts.ts`.
 
 ## Stock movement
 
