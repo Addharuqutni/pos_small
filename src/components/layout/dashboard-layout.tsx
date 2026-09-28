@@ -1,8 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/auth-context'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useLowStock } from '@/queries/reports'
+import { usePosSettings } from '@/queries/settings'
 import { cn } from '@/lib/utils'
 import { OfflineBanner } from '@/components/offline-banner'
 import {
@@ -46,19 +45,11 @@ export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Store name from settings — fallback to generic brand while loading
-  const { data: settings } = useQuery({
-    queryKey: queryKeys.settings.all,
-    queryFn: () => api.get<{ storeName: string }>('/settings'),
-    staleTime: 10 * 60 * 1000,
-  })
+  const { data: settings } = usePosSettings()
   const storeName = settings?.storeName || 'Aplikasi POS'
 
   // Low-stock notification — polled so owner/admin see stock alerts promptly.
-  const { data: lowStock } = useQuery({
-    queryKey: queryKeys.reports.lowStock(),
-    queryFn: () => api.get<unknown[]>('/reports/low-stock'),
-    refetchInterval: 60_000,
-  })
+  const { data: lowStock } = useLowStock({ refetchInterval: 60_000 })
   const lowStockCount = lowStock?.length ?? 0
 
   const handleLogout = async () => {

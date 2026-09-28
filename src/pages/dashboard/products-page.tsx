@@ -1,15 +1,14 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useProducts, useSaveProduct, useToggleProduct } from '@/queries/products'
+import { useCategories } from '@/queries/categories'
 import { formatCurrency } from '@/lib/utils'
 import { Button, Input, Select, Modal, PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Plus, Search, Edit2, Power, Wand2 } from 'lucide-react'
-import type { Product, Category, PaginatedResponse } from '@/types'
+import type { Product } from '@/types'
 
 const productSchema = z.object({
   name: z.string().min(1, 'Nama produk wajib diisi'),
@@ -67,7 +66,6 @@ async function compressImage(file: File) {
 }
 
 export function ProductsPage() {
-  const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -75,48 +73,16 @@ export function ProductsPage() {
   const [imageError, setImageError] = useState('')
   const debouncedSearch = useDebounce(search)
 
-  const { data: products, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.products.list({ search: debouncedSearch, category: filterCategory }),
-    queryFn: () => {
-      const params = new URLSearchParams()
-      if (debouncedSearch) params.set('search', debouncedSearch)
-      if (filterCategory) params.set('category', filterCategory)
-      const qs = params.toString()
-      return api.get<PaginatedResponse<Product>>(`/products${qs ? `?${qs}` : ''}`)
-    },
+  const { data: products, isLoading, isError, refetch } = useProducts({
+    search: debouncedSearch,
+    category: filterCategory,
   })
 
-  const { data: categories } = useQuery({
-    queryKey: queryKeys.categories.list(),
-    queryFn: () => api.get<Category[]>('/categories'),
-  })
+  const { data: categories } = useCategories()
 
-  const saveMutation = useMutation({
-    mutationFn: (data: ProductForm & { id?: string }) => {
-      const body = {
-        ...data,
-        sku: data.sku || null,
-        barcode: data.barcode || null,
-        categoryId: data.categoryId || null,
-        imageData: data.imageData || null,
-      }
-      return data.id
-        ? api.patch(`/products/${data.id}`, body)
-        : api.post('/products', body)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
-      closeForm()
-    },
-  })
+  const saveMutation = useSaveProduct()
 
-  const toggleMutation = useMutation({
-    mutationFn: (product: Product) =>
-      api.patch(`/products/${product.id}`, { isActive: !product.isActive }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
-    },
-  })
+  const toggleMutation = useToggleProduct()
 
   const {
     register,
@@ -213,7 +179,17 @@ export function ProductsPage() {
   }
 
   const onSubmit = (data: ProductForm) => {
-    saveMutation.mutate({ ...data, id: editing?.id })
+    saveMutation.mutate(
+      {
+        ...data,
+        sku: data.sku || null,
+        barcode: data.barcode || null,
+        categoryId: data.categoryId || null,
+        imageData: data.imageData || null,
+        id: editing?.id,
+      },
+      { onSuccess: closeForm },
+    )
   }
 
   const categoryOptions = categories

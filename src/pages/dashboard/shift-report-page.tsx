@@ -1,20 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useShiftReport } from '@/queries/shifts'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { PageHeader, StatusBadge, TableSkeleton, ErrorState } from '@/components/ui'
-import type { Shift } from '@/types'
-
-type ShiftReport = Shift & { cashierName: string }
 
 export function ShiftReportPage() {
-  const { data: shifts, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.reports.shifts(),
-    queryFn: () => api.get<ShiftReport[]>('/shifts/report'),
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-  })
+  const { data: shifts, isLoading, isError, refetch } = useShiftReport()
 
   if (isLoading) return <TableSkeleton rows={7} />
   if (isError) return <ErrorState message="Gagal memuat laporan shift." onRetry={() => refetch()} />

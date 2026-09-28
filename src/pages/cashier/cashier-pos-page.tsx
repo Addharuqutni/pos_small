@@ -1,44 +1,33 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ApiError, api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
 import { useAuth } from '@/contexts/auth-context'
 import { useCart } from '@/contexts/cart-context'
 import { useDebounce } from '@/hooks/use-debounce'
+import { useProducts } from '@/queries/products'
+import { useActiveShift } from '@/queries/shifts'
+import { usePosSettings } from '@/queries/settings'
+import { useValidatePromo } from '@/queries/promos'
+import { useCheckoutPricing } from '@/pages/cashier/use-checkout-pricing'
 import { formatCurrency } from '@/lib/utils'
 import { Button, Input, Modal } from '@/components/ui'
-import { Receipt } from '@/components/receipt/receipt'
 import { BarcodeScanner } from '@/components/barcode-scanner'
-import { printThermal } from '@/lib/thermal-printer'
+import { CompletedSaleModal } from '@/pages/cashier/completed-sale-modal'
+import { PaymentModal } from '@/pages/cashier/payment-modal'
+import { useProductLookup } from '@/pages/cashier/use-product-lookup'
 import {
   Search, Trash2, Plus, Minus, LogOut, CreditCard,
-  Banknote, QrCode, ArrowRightLeft, Printer, ScanLine, Tag, X,
+  ScanLine, Tag, X,
 } from 'lucide-react'
-import type { Product, Sale, Shift, PaymentMethod, PaginatedResponse, StoreSettings, ValidatedPromo } from '@/types'
-
-function promoDiscountFor(promo: ValidatedPromo | null, netLineTotal: number): number {
-  if (!promo) return 0
-  if (promo.type === 'percent') {
-    let amount = Math.round((netLineTotal * promo.value) / 100)
-    if (promo.maxDiscount != null) amount = Math.min(amount, promo.maxDiscount)
-    return Math.max(0, Math.min(amount, netLineTotal))
-  }
-  return Math.max(0, Math.min(promo.value, netLineTotal))
-}
+import type { Product, Sale, ValidatedPromo } from '@/types'
 
 export function CashierPosPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const { items, addItem, removeItem, updateQty, clearCart, subtotal, discountTotal, itemCount, saleDiscount, setSaleDiscount } = useCart()
+  const { items, addItem, removeItem, updateQty, clearCart, itemCount, saleDiscount, setSaleDiscount } = useCart()
 
   const [search, setSearch] = useState('')
   const [showPayment, setShowPayment] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
-  const [cashReceived, setCashReceived] = useState('')
   const [completedSale, setCompletedSale] = useState<Sale | null>(null)
-  const [shiftError, setShiftError] = useState('')
   const [showScanner, setShowScanner] = useState(false)
   const [promoCode, setPromoCode] = useState('')
   const [appliedPromo, setAppliedPromo] = useState<ValidatedPromo | null>(null)
@@ -46,80 +35,29 @@ export function CashierPosPage() {
   const searchRef = useRef<HTMLInputElement>(null)
   const debouncedSearch = useDebounce(search, 200)
 
-  // Check active shift from API
-  const { data: activeShift } = useQuery({
-    queryKey: queryKeys.shifts.active,
-    queryFn: async () => {
-      try {
-        const shift = await api.get<Shift>('/shifts/active')
-        setShiftError('')
-        return shift
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 404) {
-          setShiftError('')
-          return null
-        }
-        setShiftError(err instanceof Error ? err.message : 'Gagal memuat shift')
-        return null
-      }
-    },
-    retry: false,
-  })
+  // Active shift — a 404 means "no shift open yet", handled inside the hook.
+  const { data: activeShift } = useActiveShift()
   const shiftOpen = !!activeShift
 
   // PRD §10.4 — focus search on load for keyboard/barcode
   useEffect(() => { searchRef.current?.focus() }, [])
 
-  const { data: settings } = useQuery({
-    queryKey: queryKeys.settings.all,
-    queryFn: () => api.get<StoreSettings>('/settings'),
-    staleTime: 10 * 60 * 1000,
-  })
+  const { data: settings } = usePosSettings()
 
-  const { data: products } = useQuery({
-    queryKey: queryKeys.products.list({ search: debouncedSearch, active: true }),
-    queryFn: () => api.get<PaginatedResponse<Product>>(`/products?search=${encodeURIComponent(debouncedSearch)}&active=true`),
-  })
+  // Product search results — only what the cashier can sell right now.
+  const { data: products } = useProducts({ search: debouncedSearch, active: true })
 
-  const checkoutMutation = useMutation({
-    mutationFn: async (payload: {
-      items: { productId: string; qty: number; discount: number }[]
-      payments: { method: PaymentMethod; amount: number }[]
-      discount: number
-      promoCode?: string
-    }) => api.post<Sale>('/sales', payload),
-    onSuccess: (sale) => {
-      setCompletedSale(sale)
-      clearCart()
-      setShowPayment(false)
-      setAppliedPromo(null)
-      setPromoCode('')
-      setPromoError('')
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
-      queryClient.invalidateQueries({ queryKey: queryKeys.sales.all })
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.sales() })
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.lowStock() })
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.shifts() })
-      queryClient.invalidateQueries({ queryKey: queryKeys.promos.all })
-    },
-  })
+  const productLookup = useProductLookup()
 
-  const promoMutation = useMutation({
-    mutationFn: (code: string) =>
-      api.get<ValidatedPromo>(`/promos/validate?code=${encodeURIComponent(code)}&subtotal=${netLineTotal}`),
-    onSuccess: (promo) => {
-      setAppliedPromo(promo)
-      setPromoError('')
-    },
-    onError: (err) => {
-      setAppliedPromo(null)
-      setPromoError(err instanceof Error ? err.message : 'Promo tidak valid')
-    },
-  })
+  const promoMutation = useValidatePromo()
 
-  const applyPromo = () => {
-    if (!promoCode.trim()) return
-    promoMutation.mutate(promoCode.trim())
+  const handleCheckoutSuccess = (sale: Sale) => {
+    setCompletedSale(sale)
+    clearCart()
+    setShowPayment(false)
+    setAppliedPromo(null)
+    setPromoCode('')
+    setPromoError('')
   }
 
   const removePromo = () => {
@@ -147,48 +85,34 @@ export function CashierPosPage() {
     addItem(product)
   }
 
-  // Calculations
-  const taxRate = settings?.taxEnabled ? settings.taxRate : 0
-  const netLineTotal = subtotal - discountTotal
-  const promoDiscount = promoDiscountFor(appliedPromo, netLineTotal)
-  const taxable = netLineTotal - promoDiscount - saleDiscount
-  const taxTotal = Math.round(taxable * taxRate / 100)
-  const grandTotal = taxable + taxTotal
-  const cashReceivedNum = Math.max(0, parseInt(cashReceived) || 0)
-  const change = paymentMethod === 'cash' ? Math.max(0, cashReceivedNum - grandTotal) : 0
+  /*
+   * All money math comes from the shared pricing module — the same code path
+   * the checkout endpoint runs — so the screen can never disagree with what is
+   * stored. `useCheckoutPricing` also hands the payment modal the exact input
+   * it needs to price the tendered amount.
+   */
+  const { input: pricingInput, pricing, items: checkoutItems, blockingErrors } =
+    useCheckoutPricing(items, appliedPromo, saleDiscount, settings)
 
-  const canCheckout = shiftOpen && items.length > 0 && grandTotal > 0
+  const { subtotal, lineDiscountTotal, promoDiscount, taxTotal, grandTotal } = pricing
+  const canCheckout = shiftOpen && items.length > 0 && grandTotal > 0 && blockingErrors.length === 0
 
-  const handleCheckout = () => {
-    if (!shiftOpen) return
-    if (!canCheckout) return
-
-    const invalidItem = items.find((item) => item.qty > maxSellableQty(item.product))
-    if (invalidItem) return
-
-    const paidAmount = paymentMethod === 'cash' ? cashReceivedNum : grandTotal
-    if (paymentMethod === 'cash' && paidAmount < grandTotal) return
-
-    checkoutMutation.mutate({
-      items: items.map((i) => ({
-        productId: i.product.id,
-        qty: i.qty,
-        discount: i.discount,
-      })),
-      payments: [{ method: paymentMethod, amount: paidAmount }],
-      discount: saleDiscount,
-      promoCode: appliedPromo?.code,
-    })
-  }
-
-  const handlePrint = () => {
-    window.print()
-  }
-
-  const handleThermalPrint = async () => {
-    if (!completedSale) return
-    const printed = await printThermal(completedSale, settings ?? null)
-    if (!printed) handlePrint()
+  const applyPromo = () => {
+    if (!promoCode.trim()) return
+    promoMutation.mutate(
+      // Match checkout: the server applies the promo to the net-of-line-discount subtotal.
+      { code: promoCode.trim(), subtotal },
+      {
+        onSuccess: (promo) => {
+          setAppliedPromo(promo)
+          setPromoError('')
+        },
+        onError: (err) => {
+          setAppliedPromo(null)
+          setPromoError(err instanceof Error ? err.message : 'Promo tidak valid')
+        },
+      },
+    )
   }
 
   const handleLogout = async () => {
@@ -197,20 +121,22 @@ export function CashierPosPage() {
   }
 
   // Barcode scan — if search matches exactly one product, add it
-  const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    const product = products?.data?.[0]
-    if (e.key === 'Enter' && product && products?.data?.length === 1) {
-      addSafeItem(product)
+  const handleSearchKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || !search) return
+    const matches = await productLookup.findBySearch(search)
+    if (matches.length === 1) {
+      addSafeItem(matches[0]!)
       setSearch('')
     }
   }
 
   const handleBarcodeDetect = async (code: string) => {
-    const res = await api.get<PaginatedResponse<Product>>(`/products?search=${encodeURIComponent(code)}&active=true`)
-    const match = res.data.find((p) => p.barcode === code) ?? res.data[0]
+    const match = await productLookup.findByCode(code)
     if (match) addSafeItem(match)
     setShowScanner(false)
   }
+
+  const focusSearch = () => searchRef.current?.focus()
 
   return (
     <>
@@ -464,15 +390,19 @@ export function CashierPosPage() {
               </div>
             </div>
 
+            {blockingErrors.length > 0 && (
+              <p className="text-xs text-red-600" role="alert">{blockingErrors[0]!.message}</p>
+            )}
+
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Subtotal</span>
                 <span className="font-mono font-medium">{formatCurrency(subtotal)}</span>
               </div>
-              {discountTotal > 0 && (
+              {lineDiscountTotal > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Diskon Item</span>
-                  <span className="font-mono font-medium text-red-600">-{formatCurrency(discountTotal)}</span>
+                  <span className="font-mono font-medium text-red-600">-{formatCurrency(lineDiscountTotal)}</span>
                 </div>
               )}
               {promoDiscount > 0 && (
@@ -499,13 +429,7 @@ export function CashierPosPage() {
               </div>
             </div>
 
-            {shiftError && (
-              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700" role="alert">
-                {shiftError}
-              </div>
-            )}
-
-            {!shiftOpen && !shiftError && (
+            {!shiftOpen && (
               <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
                 Shift belum dibuka. Buka shift sebelum transaksi.
                 <button
@@ -531,102 +455,24 @@ export function CashierPosPage() {
       </div>
 
       {/* Payment modal */}
-      <Modal open={showPayment} onClose={() => setShowPayment(false)} title="Pembayaran" className="max-w-md">
-        <div className="space-y-5">
-          <div className="rounded-xl bg-primary-50 p-5 text-center">
-            <p className="text-sm font-medium text-primary-600">Total Bayar</p>
-            <p className="mt-1 text-3xl font-black text-primary-900">{formatCurrency(grandTotal)}</p>
-          </div>
-
-          {/* Payment method */}
-          <div>
-            <p className="label">Metode Pembayaran</p>
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                { method: 'cash' as const, icon: Banknote, label: 'Tunai' },
-                { method: 'qris' as const, icon: QrCode, label: 'QRIS' },
-                { method: 'transfer' as const, icon: ArrowRightLeft, label: 'Transfer' },
-              ]).map(({ method, icon: Icon, label }) => (
-                <button
-                  key={method}
-                  onClick={() => setPaymentMethod(method)}
-                  className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border-2 p-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
-                    paymentMethod === method
-                      ? 'border-primary-500 bg-primary-50 text-primary-700'
-                      : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                  }`}
-                >
-                  <Icon className="h-6 w-6" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Cash input */}
-          {paymentMethod === 'cash' && (
-            <div>
-              <Input
-                name="cash-received"
-                label="Uang Diterima"
-                type="number"
-                min={grandTotal}
-                value={cashReceived}
-                onChange={(e) => setCashReceived(e.target.value)}
-                autoFocus
-              />
-              {cashReceivedNum >= grandTotal && (
-                <p className="mt-3 rounded-xl bg-green-50 p-3 text-center text-lg font-bold text-green-700">
-                  Kembalian: {formatCurrency(change)}
-                </p>
-              )}
-            </div>
-          )}
-
-          <Button
-            className="h-12 w-full rounded-xl font-bold"
-            size="lg"
-            variant="success"
-            loading={checkoutMutation.isPending}
-            disabled={paymentMethod === 'cash' && cashReceivedNum < grandTotal}
-            onClick={handleCheckout}
-          >
-            Simpan Transaksi
-          </Button>
-
-          {checkoutMutation.isError && (
-            <p className="text-center text-sm text-red-600">
-              {checkoutMutation.error instanceof Error ? checkoutMutation.error.message : 'Gagal menyimpan transaksi'}
-            </p>
-          )}
-        </div>
-      </Modal>
+      <PaymentModal
+        open={showPayment}
+        onClose={() => setShowPayment(false)}
+        pricingInput={pricingInput}
+        items={checkoutItems}
+        saleDiscount={saleDiscount}
+        promoCode={appliedPromo?.code}
+        blockingErrors={blockingErrors}
+        onCheckoutSuccess={handleCheckoutSuccess}
+      />
 
       {/* Completed sale — receipt */}
-      <Modal open={!!completedSale} onClose={() => setCompletedSale(null)} title="Transaksi Berhasil" className="max-w-md">
-        {completedSale && (
-          <div>
-            <div className="mb-4 rounded-2xl bg-green-50 p-4 text-center text-green-700">
-              <p className="font-bold">Transaksi berhasil disimpan</p>
-              <p className="text-sm">{completedSale.invoiceNo}</p>
-            </div>
-
-            <Receipt sale={completedSale} settings={settings ?? null} />
-
-            <div className="mt-4 flex gap-3">
-              <Button variant="secondary" className="flex-1 rounded-xl" onClick={handlePrint}>
-                <Printer className="h-4 w-4" /> Cetak Struk
-              </Button>
-              <Button variant="secondary" className="flex-1 rounded-xl" onClick={handleThermalPrint}>
-                <Printer className="h-4 w-4" /> Termal
-              </Button>
-              <Button className="flex-1 rounded-xl" onClick={() => { setCompletedSale(null); searchRef.current?.focus() }}>
-                Transaksi Baru
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <CompletedSaleModal
+        sale={completedSale}
+        settings={settings ?? null}
+        onClose={() => setCompletedSale(null)}
+        onNewSale={() => { setCompletedSale(null); focusSearch() }}
+      />
 
       {/* Barcode scanner */}
       <Modal open={showScanner} onClose={() => setShowScanner(false)} title="Pindai Barcode" className="max-w-md">

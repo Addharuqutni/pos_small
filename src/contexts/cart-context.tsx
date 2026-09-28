@@ -10,8 +10,6 @@ interface CartContextValue {
   updateDiscount: (productId: string, discount: number) => void
   setSaleDiscount: (discount: number) => void
   clearCart: () => void
-  subtotal: number
-  discountTotal: number
   itemCount: number
 }
 
@@ -86,18 +84,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = useCallback(() => setState({ items: [], saleDiscount: 0 }), [])
 
-  // Memoize derived values so consumers don't recompute on every render.
-  const { subtotal, discountTotal, itemCount } = useMemo(() => {
-    let sub = 0
-    let disc = 0
-    let count = 0
-    for (const i of items) {
-      sub += i.product.price * i.qty
-      disc += i.discount * i.qty
-      count += i.qty
-    }
-    return { subtotal: sub, discountTotal: disc, itemCount: count }
-  }, [items])
+  // Money totals live in the shared sale-pricing module; the cart only counts items.
+  const itemCount = useMemo(
+    () => items.reduce((count, item) => count + item.qty, 0),
+    [items],
+  )
 
   return (
     <CartContext.Provider
@@ -110,8 +101,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
         updateDiscount,
         setSaleDiscount,
         clearCart,
-        subtotal,
-        discountTotal,
         itemCount,
       }}
     >

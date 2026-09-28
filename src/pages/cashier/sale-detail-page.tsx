@@ -1,25 +1,16 @@
 import { useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useSale } from '@/queries/sales'
+import { useSettings } from '@/queries/settings'
 import { PageSpinner, Button } from '@/components/ui'
 import { Receipt } from '@/components/receipt/receipt'
 import { Printer } from 'lucide-react'
-import type { Sale, StoreSettings } from '@/types'
 
 export function SaleDetailPage() {
   const { id } = useParams<{ id: string }>()
 
-  const { data: sale, isLoading } = useQuery({
-    queryKey: queryKeys.sales.detail(id!),
-    queryFn: () => api.get<Sale>(`/sales/${id}`),
-    enabled: !!id,
-  })
+  const { data: sale, isLoading } = useSale(id)
 
-  const { data: settings } = useQuery({
-    queryKey: queryKeys.settings.all,
-    queryFn: () => api.get<StoreSettings>('/settings'),
-  })
+  const { data: settings } = useSettings()
 
   if (isLoading) return <PageSpinner />
   if (!sale) return <div className="p-6 text-center text-slate-400">Transaksi tidak ditemukan</div>

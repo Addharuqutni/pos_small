@@ -1,21 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/auth-context'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useSales } from '@/queries/sales'
+import { useCategoriesReport, useLowStock, useProductsReport, useSalesReport } from '@/queries/reports'
 import { AlertTriangle, BarChart3, ShoppingCart, TrendingUp } from 'lucide-react'
 import { formatCurrency, formatDate, localDateInputValue, localDayIso } from '@/lib/utils'
 import { PageHeader, PageSpinner, StatusBadge, ErrorState } from '@/components/ui'
-import type { PaginatedResponse, Sale, SalesReportResponse, ProductReportRow, CategoryReportRow } from '@/types'
 import { saleStatusLabels } from '@/types'
-
-interface LowStockProduct {
-  id: string
-  name: string
-  sku: string | null
-  stock: number
-  minStock: number
-}
+import type { CategoryReportRow } from '@/types'
 
 function lastSevenDays(today = new Date()) {
   return Array.from({ length: 7 }, (_, index) => {
@@ -197,45 +188,12 @@ export function DashboardHomePage() {
   const startQuery = localDayIso(startDate)
   const endQuery = localDayIso(endDate, true)
 
-  const salesQuery = useQuery({
-    queryKey: queryKeys.reports.sales({ startDate, endDate }),
-    queryFn: () => api.get<SalesReportResponse>(`/reports/sales?start=${startQuery}&end=${endQuery}`),
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-  })
-
-  const productsQuery = useQuery({
-    queryKey: queryKeys.reports.products({ startDate, endDate }),
-    queryFn: () => api.get<ProductReportRow[]>(`/reports/products?start=${startQuery}&end=${endQuery}`),
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-  })
-
-  const categoriesQuery = useQuery({
-    queryKey: queryKeys.reports.categories({ startDate, endDate }),
-    queryFn: () => api.get<CategoryReportRow[]>(`/reports/categories?start=${startQuery}&end=${endQuery}`),
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-  })
-
-  const lowStockQuery = useQuery({
-    queryKey: queryKeys.reports.lowStock(),
-    queryFn: () => api.get<LowStockProduct[]>('/reports/low-stock'),
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-  })
-
-  const recentSalesQuery = useQuery({
-    queryKey: queryKeys.sales.list({ limit: 5 }),
-    queryFn: () => api.get<PaginatedResponse<Sale>>('/sales?limit=5'),
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-  })
+  const range = { startDate, endDate, startQuery, endQuery }
+  const salesQuery = useSalesReport(range)
+  const productsQuery = useProductsReport(range)
+  const categoriesQuery = useCategoriesReport(range)
+  const lowStockQuery = useLowStock()
+  const recentSalesQuery = useSales({ limit: 5 })
 
   if (salesQuery.isLoading) return <PageSpinner />
   if (salesQuery.isError) {

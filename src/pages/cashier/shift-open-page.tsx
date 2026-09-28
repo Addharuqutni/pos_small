@@ -1,30 +1,19 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useOpenShift } from '@/queries/shifts'
 import { Button, Input } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
-import type { Shift } from '@/types'
 
 export function ShiftOpenPage() {
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const [openingCash, setOpeningCash] = useState('')
 
-  const mutation = useMutation({
-    mutationFn: (data: { openingCash: number }) => api.post<Shift>('/shifts/open', data),
-    onSuccess: (shift) => {
-      queryClient.setQueryData(queryKeys.shifts.active, shift)
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.shifts() })
-      navigate('/cashier')
-    },
-  })
+  const mutation = useOpenShift()
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const amount = Math.max(0, parseInt(openingCash) || 0)
-    mutation.mutate({ openingCash: amount })
+    mutation.mutate({ openingCash: amount }, { onSuccess: () => navigate('/cashier') })
   }
 
   return (

@@ -1,11 +1,9 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useCreatePurchase, usePurchaseProductOptions, usePurchases } from '@/queries/purchases'
+import { useSuppliers } from '@/queries/suppliers'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button, Input, Select, Modal, PageHeader, TableSkeleton, ErrorState } from '@/components/ui'
 import { Plus, Trash2, ShoppingCart } from 'lucide-react'
-import type { Purchase, Supplier, Product, PaginatedResponse } from '@/types'
 
 interface PurchaseLine {
   productId: string
@@ -16,46 +14,18 @@ interface PurchaseLine {
 const emptyLine: PurchaseLine = { productId: '', qty: '1', costPrice: '' }
 
 export function PurchasesPage() {
-  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [supplierId, setSupplierId] = useState('')
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<PurchaseLine[]>([{ ...emptyLine }])
 
-  const { data: purchases, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.purchases.list(),
-    queryFn: () => api.get<Purchase[]>('/purchases'),
-  })
+  const { data: purchases, isLoading, isError, refetch } = usePurchases()
 
-  const { data: suppliers } = useQuery({
-    queryKey: queryKeys.suppliers.list(),
-    queryFn: () => api.get<Supplier[]>('/suppliers'),
-  })
+  const { data: suppliers } = useSuppliers()
 
-  const { data: productsData } = useQuery({
-    queryKey: queryKeys.products.list({ active: true }),
-    queryFn: () => api.get<PaginatedResponse<Product>>('/products?active=true&limit=100'),
-    enabled: showForm,
-  })
+  const { data: productsData } = usePurchaseProductOptions({ enabled: showForm })
 
-  const saveMutation = useMutation({
-    mutationFn: () =>
-      api.post('/purchases', {
-        supplierId: supplierId || null,
-        notes: notes || null,
-        items: lines.map((l) => ({
-          productId: l.productId,
-          qty: Number(l.qty),
-          costPrice: Number(l.costPrice),
-        })),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.purchases.list() })
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
-      queryClient.invalidateQueries({ queryKey: queryKeys.stock.movements({}) })
-      closeForm()
-    },
-  })
+  const saveMutation = useCreatePurchase()
 
   const products = productsData?.data ?? []
   const productOptions = products.map((p) => ({ value: p.id, label: `${p.name} (stok ${p.stock})` }))
@@ -213,7 +183,25 @@ export function PurchasesPage() {
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={closeForm}>Batal</Button>
-            <Button type="button" onClick={() => saveMutation.mutate()} disabled={!canSave} loading={saveMutation.isPending}>
+            <Button
+              type="button"
+              onClick={() =>
+                saveMutation.mutate(
+                  {
+                    supplierId: supplierId || null,
+                    notes: notes || null,
+                    items: lines.map((l) => ({
+                      productId: l.productId,
+                      qty: Number(l.qty),
+                      costPrice: Number(l.costPrice),
+                    })),
+                  },
+                  { onSuccess: closeForm },
+                )
+              }
+              disabled={!canSave}
+              loading={saveMutation.isPending}
+            >
               Simpan Pembelian
             </Button>
           </div>

@@ -1,43 +1,25 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ApiError, api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useActiveShift, useCloseShift } from '@/queries/shifts'
 import { Button, Input, PageSpinner } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
 import type { Shift } from '@/types'
 
 export function ShiftClosePage() {
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const [closingCash, setClosingCash] = useState('')
   const [closedShift, setClosedShift] = useState<Shift | null>(null)
 
-  const { data: activeShift, isLoading } = useQuery({
-    queryKey: queryKeys.shifts.active,
-    queryFn: async () => {
-      try {
-        return await api.get<Shift>('/shifts/active')
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 404) return null
-        throw err
-      }
-    },
-    retry: false,
-  })
+  const { data: activeShift, isLoading } = useActiveShift()
 
-  const mutation = useMutation({
-    mutationFn: (data: { closingCash: number }) => api.post<Shift>('/shifts/close', data),
-    onSuccess: (result) => {
-      queryClient.setQueryData(queryKeys.shifts.active, null)
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.shifts() })
-      setClosedShift(result)
-    },
-  })
+  const mutation = useCloseShift()
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    mutation.mutate({ closingCash: Math.max(0, parseInt(closingCash) || 0) })
+    mutation.mutate(
+      { closingCash: Math.max(0, parseInt(closingCash) || 0) },
+      { onSuccess: (result) => setClosedShift(result) },
+    )
   }
 
   if (isLoading) return <PageSpinner />

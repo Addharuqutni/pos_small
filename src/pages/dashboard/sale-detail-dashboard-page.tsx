@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useSale, useRefundSale, useVoidSale } from '@/queries/sales'
+import { useSettings } from '@/queries/settings'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button, Modal, Input, PageHeader, PageSpinner, StatusBadge } from '@/components/ui'
 import { Receipt } from '@/components/receipt/receipt'
-import type { Sale, StoreSettings, PaymentMethod } from '@/types'
+import type { PaymentMethod } from '@/types'
 import { saleStatusLabels, paymentMethodLabels } from '@/types'
 
 interface RefundFormItem {
@@ -20,54 +19,21 @@ interface RefundFormItem {
 export function SaleDetailDashboardPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
 
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [refundItems, setRefundItems] = useState<RefundFormItem[]>([])
   const [refundReason, setRefundReason] = useState('')
 
-  const { data: sale, isLoading } = useQuery({
-    queryKey: queryKeys.sales.detail(id!),
-    queryFn: () => api.get<Sale>(`/sales/${id}`),
-    enabled: !!id,
-  })
+  const { data: sale, isLoading } = useSale(id)
+  const { data: settings } = useSettings()
 
-  const { data: settings } = useQuery({
-    queryKey: queryKeys.settings.all,
-    queryFn: () => api.get<StoreSettings>('/settings'),
-  })
+  const voidMutation = useVoidSale(id!)
 
-  const invalidateSaleMutationCaches = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.sales.all })
-    queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
-    queryClient.invalidateQueries({ queryKey: queryKeys.stock.movements({}) })
-    queryClient.invalidateQueries({ queryKey: queryKeys.reports.sales() })
-    queryClient.invalidateQueries({ queryKey: queryKeys.reports.lowStock() })
-    queryClient.invalidateQueries({ queryKey: queryKeys.reports.shifts() })
-  }
-
-  const voidMutation = useMutation({
-    mutationFn: () => api.post(`/sales/${id}/void`),
-    onSuccess: () => {
-      invalidateSaleMutationCaches()
-      navigate('/dashboard/sales')
-    },
-  })
-
-  const refundMutation = useMutation({
-    mutationFn: (body: { reason: string; items: { saleItemId: string; qty: number }[] }) =>
-      api.post(`/sales/${id}/refund`, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.sales.detail(id!) })
-      invalidateSaleMutationCaches()
-      setShowRefundModal(false)
-      setRefundReason('')
-    },
-  })
+  const refundMutation = useRefundSale(id!)
 
   function handleVoid() {
     if (!confirm('Yakin ingin membatalkan transaksi ini? Tindakan ini tidak dapat dibatalkan.')) return
-    voidMutation.mutate()
+    voidMutation.mutate(undefined, { onSuccess: () => navigate('/dashboard/sales') })
   }
 
   function openRefundModal() {
@@ -101,10 +67,18 @@ export function SaleDetailDashboardPage() {
   function handleRefundSubmit() {
     const selected = refundItems.filter((i) => i.checked && i.qty > 0)
     if (selected.length === 0) return
-    refundMutation.mutate({
-      reason: refundReason,
-      items: selected.map((i) => ({ saleItemId: i.saleItemId, qty: i.qty })),
-    })
+    refundMutation.mutate(
+      {
+        reason: refundReason,
+        items: selected.map((i) => ({ saleItemId: i.saleItemId, qty: i.qty })),
+      },
+      {
+        onSuccess: () => {
+          setShowRefundModal(false)
+          setRefundReason('')
+        },
+      },
+    )
   }
 
   if (isLoading) return <PageSpinner />

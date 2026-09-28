@@ -1,30 +1,8 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useSalesReport, salesReportExportUrl } from '@/queries/reports'
 import { formatCurrency, formatDateOnly, localDateInputValue, localDayIso } from '@/lib/utils'
 import { Button, Input, PageHeader, TableSkeleton, ErrorState } from '@/components/ui'
 import { Download, FileText } from 'lucide-react'
-
-interface SalesReportRow {
-  date: string
-  totalSales: number
-  totalRevenue: number
-  totalDiscount: number
-  totalTax: number
-}
-
-interface SalesReportSummary {
-  totalSales: number
-  totalRevenue: number
-  totalDiscount: number
-  totalTax: number
-}
-
-interface SalesReportResponse {
-  daily: SalesReportRow[]
-  summary: SalesReportSummary
-}
 
 export function ReportsPage() {
   const today = new Date()
@@ -36,24 +14,19 @@ export function ReportsPage() {
   const startQuery = startDate ? localDayIso(startDate) : ''
   const endQuery = endDate ? localDayIso(endDate, true) : ''
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.reports.sales({ startDate, endDate }),
-    queryFn: () =>
-      api.get<SalesReportResponse>(`/reports/sales?start=${startQuery}&end=${endQuery}`),
-    enabled: !invalidRange,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-  })
+  const { data, isLoading, isError, refetch } = useSalesReport(
+    { startDate, endDate, startQuery, endQuery },
+    { enabled: !invalidRange },
+  )
 
   const handleExport = () => {
     // PRD §9.9 — CSV export
-    window.open(`/api/reports/sales?start=${startQuery}&end=${endQuery}&format=csv`, '_blank')
+    window.open(salesReportExportUrl({ startQuery, endQuery }, 'csv'), '_blank')
   }
 
   const handleExportPdf = () => {
     // Printable HTML report — user saves as PDF via browser print dialog.
-    window.open(`/api/reports/sales?start=${startQuery}&end=${endQuery}&format=html`, '_blank')
+    window.open(salesReportExportUrl({ startQuery, endQuery }, 'html'), '_blank')
   }
 
   return (

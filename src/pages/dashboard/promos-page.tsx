@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { usePromos, useSavePromo, useTogglePromo } from '@/queries/promos'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button, Input, Select, Modal, PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { Plus, Edit2, Power, TicketPercent } from 'lucide-react'
@@ -37,42 +35,14 @@ function toLocalDatetime(iso: string | null): string {
 }
 
 export function PromosPage() {
-  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Promo | null>(null)
 
-  const { data: promos, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.promos.list(),
-    queryFn: () => api.get<Promo[]>('/promos'),
-  })
+  const { data: promos, isLoading, isError, refetch } = usePromos()
 
-  const saveMutation = useMutation({
-    mutationFn: (data: PromoForm & { id?: string }) => {
-      const body = {
-        code: data.code,
-        name: data.name,
-        type: data.type,
-        value: data.value,
-        minPurchase: data.minPurchase,
-        maxDiscount: data.maxDiscount === '' ? null : Number(data.maxDiscount),
-        startsAt: data.startsAt ? new Date(data.startsAt).toISOString() : new Date().toISOString(),
-        endsAt: data.endsAt ? new Date(data.endsAt).toISOString() : null,
-        usageLimit: data.usageLimit === '' ? null : Number(data.usageLimit),
-      }
-      return data.id
-        ? api.patch(`/promos/${data.id}`, body)
-        : api.post('/promos', body)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.promos.all })
-      closeForm()
-    },
-  })
+  const saveMutation = useSavePromo()
 
-  const toggleMutation = useMutation({
-    mutationFn: (promo: Promo) => api.patch(`/promos/${promo.id}`, { isActive: !promo.isActive }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.promos.all }),
-  })
+  const toggleMutation = useTogglePromo()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<PromoForm>({
     resolver: zodResolver(promoSchema),
@@ -114,7 +84,23 @@ export function PromosPage() {
     setEditing(null)
   }
 
-  const onSubmit = (data: PromoForm) => saveMutation.mutate({ ...data, id: editing?.id })
+  const onSubmit = (data: PromoForm) => {
+    saveMutation.mutate(
+      {
+        code: data.code,
+        name: data.name,
+        type: data.type,
+        value: data.value,
+        minPurchase: data.minPurchase,
+        maxDiscount: data.maxDiscount === '' ? null : Number(data.maxDiscount),
+        startsAt: data.startsAt ? new Date(data.startsAt).toISOString() : new Date().toISOString(),
+        endsAt: data.endsAt ? new Date(data.endsAt).toISOString() : null,
+        usageLimit: data.usageLimit === '' ? null : Number(data.usageLimit),
+        id: editing?.id,
+      },
+      { onSuccess: closeForm },
+    )
+  }
 
   const describeValue = (promo: Promo) =>
     promo.type === 'percent' ? `${promo.value}%` : formatCurrency(promo.value)

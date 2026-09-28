@@ -43,7 +43,8 @@ export function Receipt({ sale, settings, copy }: ReceiptProps) {
                 {item.discount > 0 && (
                   <div className="flex justify-between text-slate-500">
                     <span>Disk.</span>
-                    <span>-{formatCurrency(item.discount * item.qty)}</span>
+                    {/* Server-stored line subtotal is already net of the per-unit discount. */}
+                    <span>-{formatCurrency(item.price * item.qty - item.subtotal)}</span>
                   </div>
                 )}
               </td>

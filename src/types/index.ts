@@ -245,6 +245,8 @@ export interface ValidatedPromo {
   type: PromoType
   value: number
   maxDiscount: number | null
+  /** Pre-discount subtotal required for the promo to apply (0 = no minimum). */
+  minPurchase: number
   discount: number
 }
 
@@ -292,6 +294,29 @@ export interface CategoryReportRow {
   totalRevenue: number
 }
 
+/** GET /reports/low-stock — product at or below its minimum stock */
+export interface LowStockProduct {
+  id: string
+  name: string
+  sku: string | null
+  stock: number
+  minStock: number
+}
+
+/** GET /shifts/report — shift joined with its cashier's name */
+export interface ShiftReportRow {
+  id: string
+  cashierId: string
+  cashierName: string
+  openedAt: string
+  closedAt: string | null
+  openingCash: number
+  closingCash: number | null
+  expectedCash: number | null
+  difference: number | null
+  status: ShiftStatus
+}
+
 // --- Shared UI label maps (used by multiple dashboard pages) ---
 
 export const saleStatusLabels: Record<SaleStatus, string> = {
@@ -305,6 +330,14 @@ export const paymentMethodLabels: Record<PaymentMethod, string> = {
   cash: 'Tunai',
   qris: 'QRIS',
   transfer: 'Transfer',
+}
+
+export const stockMovementTypeLabels: Record<StockMovementType, string> = {
+  sale: 'Penjualan',
+  adjustment: 'Koreksi',
+  return: 'Retur',
+  restock: 'Restok',
+  refund: 'Pengembalian',
 }
 
 export const roleLabels: Record<Role, string> = {

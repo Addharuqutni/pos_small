@@ -1,22 +1,12 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useActiveProducts, useAdjustStock, useStockMovements } from '@/queries/stock'
 import { formatDate } from '@/lib/utils'
 import { Button, Input, Select, Modal, PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { Plus } from 'lucide-react'
-import type { StockMovement, Product, PaginatedResponse } from '@/types'
-
-const typeLabels: Record<string, string> = {
-  sale: 'Penjualan',
-  adjustment: 'Koreksi',
-  return: 'Retur',
-  restock: 'Restok',
-  refund: 'Pengembalian',
-}
+import { stockMovementTypeLabels } from '@/types'
 
 const adjustSchema = z.object({
   productId: z.string().min(1, 'Pilih produk'),
@@ -33,29 +23,13 @@ const typeOptions = [
 ]
 
 export function StockPage() {
-  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.stock.movements({}),
-    queryFn: () => api.get<PaginatedResponse<StockMovement>>('/stock/movements'),
-  })
+  const { data, isLoading, isError, refetch } = useStockMovements()
 
-  const { data: productsData } = useQuery({
-    queryKey: queryKeys.products.list({ active: true }),
-    queryFn: () => api.get<PaginatedResponse<Product>>('/products?active=true'),
-    enabled: showForm,
-  })
+  const { data: productsData } = useActiveProducts({ enabled: showForm })
 
-  const adjustMutation = useMutation({
-    mutationFn: (body: AdjustForm) => api.post('/stock/adjust', body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.stock.movements({}) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.lowStock() })
-      closeForm()
-    },
-  })
+  const adjustMutation = useAdjustStock()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<AdjustForm>({
     resolver: zodResolver(adjustSchema),
@@ -68,7 +42,9 @@ export function StockPage() {
 
   const closeForm = () => setShowForm(false)
 
-  const onSubmit = (data: AdjustForm) => adjustMutation.mutate(data)
+  const onSubmit = (data: AdjustForm) => {
+    adjustMutation.mutate(data, { onSuccess: closeForm })
+  }
 
   const productOptions = (productsData?.data ?? []).map((p) => ({
     value: p.id,
@@ -106,7 +82,7 @@ export function StockPage() {
                 <td className="px-4 py-3 text-slate-500 text-xs">{formatDate(m.createdAt)}</td>
                 <td className="px-4 py-3 font-medium text-slate-900">{m.productName ?? m.productId}</td>
                 <td className="px-4 py-3">
-                  <StatusBadge>{typeLabels[m.type] ?? m.type}</StatusBadge>
+                  <StatusBadge>{stockMovementTypeLabels[m.type] ?? m.type}</StatusBadge>
                 </td>
                 <td className={`px-4 py-3 text-right font-mono font-medium ${m.qtyChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {m.qtyChange > 0 ? '+' : ''}{m.qtyChange}

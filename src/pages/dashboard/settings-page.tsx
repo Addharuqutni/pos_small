@@ -1,13 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useSaveSettings, useSettings } from '@/queries/settings'
 import { useAuth } from '@/contexts/auth-context'
 import { Button, Input, PageHeader, PageSpinner } from '@/components/ui'
 import { Download } from 'lucide-react'
-import type { StoreSettings } from '@/types'
 
 const settingsSchema = z.object({
   storeName: z.string().min(1, 'Nama toko wajib diisi'),
@@ -24,17 +21,10 @@ type SettingsForm = z.infer<typeof settingsSchema>
 
 export function SettingsPage() {
   const { user } = useAuth()
-  const queryClient = useQueryClient()
 
-  const { data: settings, isLoading } = useQuery({
-    queryKey: queryKeys.settings.all,
-    queryFn: () => api.get<StoreSettings>('/settings'),
-  })
+  const { data: settings, isLoading } = useSettings()
 
-  const mutation = useMutation({
-    mutationFn: (data: SettingsForm) => api.patch('/settings', data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.settings.all }),
-  })
+  const mutation = useSaveSettings()
 
   const { register, handleSubmit, formState: { errors } } = useForm<SettingsForm>({
     resolver: zodResolver(settingsSchema),

@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useSaveSupplier, useSuppliers, useToggleSupplier } from '@/queries/suppliers'
 import { Button, Input, Modal, PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { Plus, Edit2, Power, Truck } from 'lucide-react'
 import type { Supplier } from '@/types'
@@ -18,34 +16,14 @@ const supplierSchema = z.object({
 type SupplierForm = z.infer<typeof supplierSchema>
 
 export function SuppliersPage() {
-  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Supplier | null>(null)
 
-  const { data: suppliers, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.suppliers.list(),
-    queryFn: () => api.get<Supplier[]>('/suppliers'),
-  })
+  const { data: suppliers, isLoading, isError, refetch } = useSuppliers()
 
-  const saveMutation = useMutation({
-    mutationFn: (data: SupplierForm & { id?: string }) => {
-      const body = {
-        name: data.name,
-        phone: data.phone || null,
-        address: data.address || null,
-      }
-      return data.id ? api.patch(`/suppliers/${data.id}`, body) : api.post('/suppliers', body)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all })
-      closeForm()
-    },
-  })
+  const saveMutation = useSaveSupplier()
 
-  const toggleMutation = useMutation({
-    mutationFn: (supplier: Supplier) => api.patch(`/suppliers/${supplier.id}`, { isActive: !supplier.isActive }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all }),
-  })
+  const toggleMutation = useToggleSupplier()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<SupplierForm>({
     resolver: zodResolver(supplierSchema),
@@ -68,7 +46,12 @@ export function SuppliersPage() {
     setEditing(null)
   }
 
-  const onSubmit = (data: SupplierForm) => saveMutation.mutate({ ...data, id: editing?.id })
+  const onSubmit = (data: SupplierForm) => {
+    saveMutation.mutate(
+      { name: data.name, phone: data.phone || null, address: data.address || null, id: editing?.id },
+      { onSuccess: closeForm },
+    )
+  }
 
   if (isLoading) return <TableSkeleton rows={5} />
   if (isError) return <ErrorState message="Gagal memuat supplier." onRetry={() => refetch()} />

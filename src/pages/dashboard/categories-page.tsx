@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useCategories, useSaveCategory, useToggleCategory } from '@/queries/categories'
 import { Button, Input, Modal, PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { Plus, Edit2, Power } from 'lucide-react'
 import type { Category } from '@/types'
@@ -16,33 +14,14 @@ const categorySchema = z.object({
 type CategoryForm = z.infer<typeof categorySchema>
 
 export function CategoriesPage() {
-  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Category | null>(null)
 
-  const { data: categories, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.categories.list(),
-    queryFn: () => api.get<Category[]>('/categories'),
-  })
+  const { data: categories, isLoading, isError, refetch } = useCategories()
 
-  const saveMutation = useMutation({
-    mutationFn: (data: CategoryForm & { id?: string }) =>
-      data.id
-        ? api.patch(`/categories/${data.id}`, data)
-        : api.post('/categories', data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
-      closeForm()
-    },
-  })
+  const saveMutation = useSaveCategory()
 
-  const toggleMutation = useMutation({
-    mutationFn: (cat: Category) =>
-      api.patch(`/categories/${cat.id}`, { isActive: !cat.isActive }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
-    },
-  })
+  const toggleMutation = useToggleCategory()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CategoryForm>({
     resolver: zodResolver(categorySchema),
@@ -66,7 +45,7 @@ export function CategoriesPage() {
   }
 
   const onSubmit = (data: CategoryForm) => {
-    saveMutation.mutate({ ...data, id: editing?.id })
+    saveMutation.mutate({ ...data, id: editing?.id }, { onSuccess: closeForm })
   }
 
   if (isLoading) return <TableSkeleton rows={5} cols={[30, 14, 12]} />

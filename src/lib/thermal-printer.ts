@@ -64,7 +64,8 @@ export function buildReceipt(sale: Sale, settings: StoreSettings | null, width =
   for (const item of sale.items) {
     line(buf, item.productNameSnapshot, width)
     line(buf, `  ${item.qty} x ${currency(item.price)}`, width)
-    if (item.discount > 0) line(buf, `  Disk -${currency(item.discount * item.qty)}`, width)
+    // Server-stored line subtotal is already net of the per-unit discount.
+    if (item.discount > 0) line(buf, `  Disk -${currency(item.price * item.qty - item.subtotal)}`, width)
     line(buf, `  ${currency(item.subtotal)}`, width)
   }
 
@@ -140,4 +141,13 @@ export async function printThermal(sale: Sale, settings: StoreSettings | null): 
     // User cancelled device picker, or no WebUSB — caller falls back to window.print.
     return false
   }
+}
+
+/**
+ * Print a receipt, preferring the WebUSB thermal printer and falling back to
+ * the browser print dialog (the receipt renders inside `@media print`).
+ * Callers never need to know which path was taken.
+ */
+export async function printReceipt(sale: Sale, settings: StoreSettings | null): Promise<void> {
+  if (!(await printThermal(sale, settings))) window.print()
 }

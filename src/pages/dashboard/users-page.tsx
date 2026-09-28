@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { api } from '@/lib/api'
-import { queryKeys } from '@/lib/query-keys'
+import { useResetUserPassword, useSaveUser, useToggleUser, useUsers } from '@/queries/users'
 import { useAuth } from '@/contexts/auth-context'
 import { Button, Input, Select, Modal, PageHeader, TableSkeleton, StatusBadge, ErrorState } from '@/components/ui'
 import { Plus, Edit2, Power, KeyRound } from 'lucide-react'
@@ -21,36 +19,16 @@ type UserForm = z.infer<typeof userSchema>
 
 export function UsersPage() {
   const { user: currentUser } = useAuth()
-  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<User | null>(null)
 
-  const { data: users, isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.users.list(),
-    queryFn: () => api.get<User[]>('/users'),
-  })
+  const { data: users, isLoading, isError, refetch } = useUsers()
 
-  const saveMutation = useMutation({
-    mutationFn: (data: UserForm & { id?: string }) => {
-      const body = { ...data }
-      if (!body.password) delete (body as Record<string, unknown>).password
-      return data.id ? api.patch(`/users/${data.id}`, body) : api.post('/users', body)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
-      closeForm()
-    },
-  })
+  const saveMutation = useSaveUser()
 
-  const toggleMutation = useMutation({
-    mutationFn: (u: User) => api.patch(`/users/${u.id}`, { isActive: !u.isActive }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all }),
-  })
+  const toggleMutation = useToggleUser()
 
-  const resetPwMutation = useMutation({
-    mutationFn: ({ id, password }: { id: string; password: string }) =>
-      api.post(`/users/${id}/reset-password`, { password }),
-  })
+  const resetPwMutation = useResetUserPassword()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<UserForm>({
     resolver: zodResolver(userSchema),
@@ -72,7 +50,7 @@ export function UsersPage() {
   const closeForm = () => { setShowForm(false); setEditing(null) }
 
   const onSubmit = (data: UserForm) => {
-    saveMutation.mutate({ ...data, id: editing?.id })
+    saveMutation.mutate({ ...data, id: editing?.id }, { onSuccess: closeForm })
   }
 
   const resetPassword = (u: User) => {
