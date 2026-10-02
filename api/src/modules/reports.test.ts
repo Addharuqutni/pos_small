@@ -49,7 +49,7 @@ test('reportRoutes enforces authentication and role-based access for profit and 
 
   const rbacApp = Fastify()
   errorHandler(rbacApp)
-  rbacApp.decorateRequest('user', null)
+  // decorateRequest not needed with custom onRequest/preHandler hook
 
   // Route requiring owner or admin (like reportRoutes preHandler)
   rbacApp.get('/test/cashiers', {

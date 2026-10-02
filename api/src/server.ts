@@ -20,7 +20,7 @@ import { backupRoutes } from './modules/backup.js'
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: !process.env.VERCEL, // ponytail: Vercel lambda logs via platform; pino adds cold-start cost
+    logger: true,
   })
   const sessionSecret = process.env.SESSION_SECRET
   if (process.env.NODE_ENV === 'production' && (!sessionSecret || sessionSecret.length < 32)) {
@@ -72,10 +72,6 @@ export async function buildApp(): Promise<FastifyInstance> {
   return app
 }
 
-// Run as standalone server only outside Vercel.
-// ponytail: Vercel entry reaches buildApp() via the repo-root vercel-handler.ts.
-if (!process.env.VERCEL) {
-  const app = await buildApp()
-  const port = Number(process.env.PORT) || 4000
-  await app.listen({ port, host: '0.0.0.0' })
-}
+const app = await buildApp()
+const port = Number(process.env.PORT) || 4000
+await app.listen({ port, host: '0.0.0.0' })

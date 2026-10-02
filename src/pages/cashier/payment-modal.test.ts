@@ -5,7 +5,7 @@ import {
   draftAmounts,
   toPayments,
   type PaymentDraft,
-} from './payment-modal.js'
+} from './payment-tender.ts'
 
 test('draftAmount parses positive integers and defaults to 0 for invalid inputs', () => {
   assert.equal(draftAmount('50000'), 50000)
