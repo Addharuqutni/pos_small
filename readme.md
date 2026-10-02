@@ -42,7 +42,7 @@ Antarmuka berbahasa Indonesia, sedangkan kode, nama file, dan route API mengguna
 - Manajemen produk, kategori, supplier, dan pembelian (stok masuk)
 - Manajemen promo (persen/nominal, periode, batas pemakaian)
 - Riwayat transaksi dengan pencarian, detail, pembatalan (void), dan pengembalian (refund)
-- Laporan: penjualan, produk, kategori, dan stok rendah — ekspor CSV dan PDF
+- Laporan: penjualan, produk, kategori, per kasir, profit/laba (khusus owner), dan stok rendah — ekspor CSV dan PDF/HTML
 - Laporan shift dan audit
 - Manajemen pengguna dan pengaturan toko
 - Cadangan data (backup) JSON penuh
