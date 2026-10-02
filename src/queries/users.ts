@@ -9,10 +9,11 @@ export function invalidateAfterUserChange(queryClient: QueryClient) {
 }
 
 /** GET /users */
-export function useUsers() {
+export function useUsers(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.users.list(),
     queryFn: () => api.get<User[]>('/users'),
+    ...options,
   })
 }
 

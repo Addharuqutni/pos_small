@@ -159,6 +159,33 @@ test('void sales are excluded while a fully refunded item nets to zero', async (
   })
 })
 
+test('a refund on a discounted sale never drives revenue or profit negative', async () => {
+  const { cashier } = await fixtures()
+  const product = await createProduct(ctx.db, { name: 'Kopi Diskon', price: 100_000, costPrice: 40_000, stock: 5 })
+
+  // 100 000 subtotal with 50 000 discount -> 50 000 grand total (discount factor 0.5)
+  const { saleId } = await checkoutSale(ctx.db, actor(cashier.id), {
+    items: [{ productId: product.id, qty: 1 }],
+    payments: [{ method: 'cash', amount: 50_000 }],
+    discount: 50_000,
+  })
+  const [item] = await ctx.db.select().from(saleItems).where(eq(saleItems.saleId, saleId))
+
+  // Fully refund the item
+  await refundSale(ctx.db, actor(cashier.id), saleId, {
+    reason: 'Salah beli', items: [{ saleItemId: item!.id, qty: 1 }],
+  })
+
+  const report = await profitReport(ctx.db, { ...ALL_TIME, groupBy: 'product' })
+  assert.equal(report.rows[0]!.revenue, 0)
+  assert.equal(report.rows[0]!.cogs, 0)
+  assert.equal(report.rows[0]!.grossProfit, 0)
+  assert.equal(report.rows[0]!.marginPct, null)
+  assert.equal(report.summary.revenue, 0)
+  assert.equal(report.summary.grossProfit, 0)
+  assert.equal(report.summary.marginPct, null)
+})
+
 test('hasEstimatedCost propagates from backfilled sale items to the group and summary', async () => {
   const { cashier } = await fixtures()
   const product = await createProduct(ctx.db, { name: 'Kopi', price: 20_000, costPrice: 12_000, stock: 5 })

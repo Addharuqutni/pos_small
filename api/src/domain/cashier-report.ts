@@ -60,7 +60,10 @@ export async function cashierReport(db: Db, params: CashierReportParams): Promis
   const refundRows = await db
     .select({
       cashierId: sales.cashierId,
-      refundTotal: sql<number>`COALESCE(SUM(${refundItems.amount}), 0)`.as('refundTotal'),
+      refundTotal: sql<number>`ROUND(COALESCE(SUM(
+        ${refundItems.amount} * CASE WHEN ${sales.subtotal} = 0 THEN 0
+        ELSE (${sales.subtotal} - ${sales.promoDiscount} - ${sales.discount})::numeric / ${sales.subtotal} END
+      ), 0))`.as('refundTotal'),
     })
     .from(refundItems)
     .innerJoin(refunds, eq(refundItems.refundId, refunds.id))

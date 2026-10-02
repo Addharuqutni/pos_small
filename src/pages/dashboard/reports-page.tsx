@@ -360,7 +360,7 @@ export function ReportsPage() {
 
   // Filter pickers. The users endpoint is owner-only, so an admin simply sees
   // an empty cashier list instead of a broken page.
-  const { data: users } = useUsers()
+  const { data: users } = useUsers({ enabled: isOwner })
   const { data: categories } = useCategories()
   const { data: productsData } = useProducts({ limit: 100 })
 

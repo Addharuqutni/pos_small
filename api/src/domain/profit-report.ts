@@ -71,7 +71,7 @@ export async function profitReport(db: Db, params: ProfitReportParams): Promise<
   // Sale-level discount factor: (subtotal − promo − manual) / subtotal, 0 if subtotal is 0.
   const discountFactor = sql`CASE WHEN ${sales.subtotal} = 0 THEN 0
     ELSE (${sales.subtotal} - ${sales.promoDiscount} - ${sales.discount})::numeric / ${sales.subtotal} END`
-  const netRevenue = sql`${saleItems.subtotal} * ${discountFactor} - ${refundedAmount}`
+  const netRevenue = sql`(${saleItems.subtotal} - ${refundedAmount}) * ${discountFactor}`
   const netQty = sql`${saleItems.qty} - ${refundedQty}`
   const itemCogs = sql`${saleItems.costPrice} * (${saleItems.qty} - ${refundedQty})`
 
@@ -131,7 +131,7 @@ export async function profitReport(db: Db, params: ProfitReportParams): Promise<
       revenue,
       cogs,
       grossProfit,
-      marginPct: revenue === 0 ? null : Math.round((grossProfit / revenue) * 1000) / 10,
+      marginPct: revenue <= 0 ? null : Math.round((grossProfit / revenue) * 1000) / 10,
       hasEstimatedCost: row.hasEstimatedCost === true,
     }
   })
@@ -146,7 +146,7 @@ export async function profitReport(db: Db, params: ProfitReportParams): Promise<
       revenue,
       cogs,
       grossProfit,
-      marginPct: revenue === 0 ? null : Math.round((grossProfit / revenue) * 1000) / 10,
+      marginPct: revenue <= 0 ? null : Math.round((grossProfit / revenue) * 1000) / 10,
       hasEstimatedCost: grouped.some((row) => row.hasEstimatedCost),
     },
   }
